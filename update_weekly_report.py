@@ -850,7 +850,8 @@ def backfill_missing_fields():
 
     patched = 0
     for wk_str, d in sorted(report["weeks"].items(), key=lambda x: int(x[0])):
-        if "saSigned" in d and "dcCount" in d and "acCount" in d and "acDeals" in d:
+        if ("saSigned" in d and "dcCount" in d and "acCount" in d
+                and "acDeals" in d and "paidSettled" in d):
             print(f"  W{wk_str}: already complete, skipping")
             continue
 
@@ -867,8 +868,9 @@ def backfill_missing_fields():
         ac_deals      = fetch_ac_deals(start, end)
         d["acCount"]  = len(ac_deals)
         d["acDeals"]  = ac_deals
+        d["paidSettled"] = _fetch_deal_date_count("paid_recruitment_date", start, end)
 
-        print(f"    SA={d['saSigned']} DC={d['dcCount']} AC={d['acCount']}")
+        print(f"    SA={d['saSigned']} DC={d['dcCount']} AC={d['acCount']} Deposit={d['paidSettled']}")
         patched += 1
 
     if patched == 0:
@@ -932,7 +934,8 @@ def main():
     dc_count    = len(dc_deals)
     ac_deals    = fetch_ac_deals(start, end)
     ac_count    = len(ac_deals)
-    print(f"  Deals created: {deals_count} | SA signed: {sa_signed} | DC: {dc_count} | AC: {ac_count}")
+    paid_settled = _fetch_deal_date_count("paid_recruitment_date", start, end)
+    print(f"  Deals created: {deals_count} | SA: {sa_signed} | DC: {dc_count} | AC: {ac_count} | Deposit: {paid_settled}")
 
     # Top 50 outreach
     print("\n[4/5] Building top 50 outreach list…")
@@ -986,6 +989,7 @@ def main():
         "dcDeals":           dc_deals,
         "acCount":           ac_count,
         "acDeals":           ac_deals,
+        "paidSettled":       paid_settled,
     }
 
     # Patch HTML
