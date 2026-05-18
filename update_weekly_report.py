@@ -278,9 +278,9 @@ def fetch_deals_progress(contact_ids):
             continue
         total += 1
         stage  = props.get("dealstage", "")
-        if stage in DC_ATTENDED_STAGES: dc   += 1
-        if stage in AC_ATTENDED_STAGES: ac   += 1
-        if stage in PAID_FEE_STAGES:    paid += 1
+        if stage in DC_ATTENDED_STAGES:        dc   += 1
+        if stage in AC_ATTENDED_STAGES:        ac   += 1
+        if props.get("paid_recruitment_date"): paid += 1  # actual payment recorded
 
     return {"total": total, "dcAttended": dc, "acAttended": ac, "paid": paid}
 
@@ -451,6 +451,40 @@ def fetch_dc_deals(start, end):
     deals.sort(key=lambda x: x["dcDate"])
     return deals
 
+def fetch_ac_deals(start, end):
+    """Fetch BD pipeline deals with alignment_call_date in [start, end], returning company list."""
+    filters = [
+        {"propertyName": "pipeline",            "operator": "EQ",  "value": BD_PIPELINE_ID},
+        {"propertyName": "alignment_call_date", "operator": "GTE", "value": str(_date_ms(start))},
+        {"propertyName": "alignment_call_date", "operator": "LTE", "value": str(_date_ms(end))},
+    ]
+    props = ["dealname", "alignment_call_date", "alignment_call_attendance", "dealstage"]
+    results, after = [], None
+    while True:
+        body = {"filterGroups": [{"filters": filters}], "properties": props, "limit": 100}
+        if after:
+            body["after"] = after
+        r = requests.post(f"{BASE_URL}/crm/v3/objects/deals/search", headers=HEADERS, json=body)
+        r.raise_for_status()
+        data = r.json()
+        results.extend(data.get("results", []))
+        after = data.get("paging", {}).get("next", {}).get("after")
+        if not after:
+            break
+
+    deals = []
+    for d in results:
+        p = d.get("properties", {})
+        deals.append({
+            "id":         d["id"],
+            "company":    p.get("dealname", "Unknown"),
+            "acDate":     p.get("alignment_call_date", ""),
+            "attendance": p.get("alignment_call_attendance", ""),
+            "stage":      STAGE_LABELS.get(p.get("dealstage", ""), p.get("dealstage", "")),
+        })
+    deals.sort(key=lambda x: x["acDate"])
+    return deals
+
 def fetch_deals_created_count(start, end):
     filters = [
         {"propertyName": "pipeline",   "operator": "EQ",  "value": BD_PIPELINE_ID},
@@ -588,9 +622,10 @@ def fetch_monthly_contacts(num_months=6):
         contact_ids  = [c["id"] for c in contacts]
         deals_prog   = fetch_deals_progress(contact_ids)
         sa_signed    = fetch_sa_signed_count(month_start, month_end)
-        dc_count     = _fetch_deal_date_count("discovery_call_date", month_start, month_end)
-        ac_count     = _fetch_deal_date_count("alignment_call_date",  month_start, month_end)
-        print(f"| {deals_prog['total']} deals | {sa_signed} SA | {dc_count} DC | {ac_count} AC")
+        dc_count     = _fetch_deal_date_count("discovery_call_date",    month_start, month_end)
+        ac_count     = _fetch_deal_date_count("alignment_call_date",     month_start, month_end)
+        paid_count   = _fetch_deal_date_count("paid_recruitment_date",   month_start, month_end)
+        print(f"| {deals_prog['total']} deals | {sa_signed} SA | {dc_count} DC | {ac_count} AC | {paid_count} Paid")
 
         results.append({
             "key":         f"{y}-{m:02d}",
@@ -607,6 +642,7 @@ def fetch_monthly_contacts(num_months=6):
             "saSigned":    sa_signed,
             "dcCount":     dc_count,
             "acCount":     ac_count,
+            "paidCount":   paid_count,
         })
 
     return results
@@ -814,7 +850,7 @@ def backfill_missing_fields():
 
     patched = 0
     for wk_str, d in sorted(report["weeks"].items(), key=lambda x: int(x[0])):
-        if "saSigned" in d and "dcCount" in d and "acCount" in d:
+        if "saSigned" in d and "dcCount" in d and "acCount" in d and "acDeals" in d:
             print(f"  W{wk_str}: already complete, skipping")
             continue
 
@@ -828,7 +864,9 @@ def backfill_missing_fields():
         dc_deals      = fetch_dc_deals(start, end)
         d["dcCount"]  = len(dc_deals)
         d["dcDeals"]  = dc_deals
-        d["acCount"]  = _fetch_deal_date_count("alignment_call_date", start, end)
+        ac_deals      = fetch_ac_deals(start, end)
+        d["acCount"]  = len(ac_deals)
+        d["acDeals"]  = ac_deals
 
         print(f"    SA={d['saSigned']} DC={d['dcCount']} AC={d['acCount']}")
         patched += 1
@@ -892,7 +930,8 @@ def main():
     sa_signed   = fetch_sa_signed_count(start, end)
     dc_deals    = fetch_dc_deals(start, end)
     dc_count    = len(dc_deals)
-    ac_count    = _fetch_deal_date_count("alignment_call_date", start, end)
+    ac_deals    = fetch_ac_deals(start, end)
+    ac_count    = len(ac_deals)
     print(f"  Deals created: {deals_count} | SA signed: {sa_signed} | DC: {dc_count} | AC: {ac_count}")
 
     # Top 50 outreach
@@ -946,6 +985,7 @@ def main():
         "dcCount":           dc_count,
         "dcDeals":           dc_deals,
         "acCount":           ac_count,
+        "acDeals":           ac_deals,
     }
 
     # Patch HTML

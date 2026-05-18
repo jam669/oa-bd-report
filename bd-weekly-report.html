@@ -631,6 +631,28 @@
         </table>
       </div>
 
+      <!-- ALIGNMENT CALLS COMPANY LIST -->
+      <div class="table-card" style="margin-bottom:28px" id="ac-companies-card">
+        <div class="table-header">
+          <h3>Alignment Calls This Week</h3>
+          <span class="badge badge-muted" id="ac-week-badge">W19</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Company / Deal</th>
+              <th>AC Date</th>
+              <th>Attendance</th>
+              <th>Current Stage</th>
+            </tr>
+          </thead>
+          <tbody id="ac-companies-body">
+            <tr><td colspan="5" style="color:var(--muted)">Loading&hellip;</td></tr>
+          </tbody>
+        </table>
+      </div>
+
       <!-- TREND + BREAKDOWN CHART -->
       <div class="chart-row">
         <div class="chart-card">
@@ -1475,7 +1497,16 @@
           "stage": "Hiring & Recruiting"
         }
       ],
-      "acCount": 1
+      "acCount": 1,
+      "acDeals": [
+        {
+          "id": "58289396646",
+          "company": "Legacy Advisory - Lender Representatives",
+          "acDate": "2026-04-21",
+          "attendance": "Prospect no show",
+          "stage": "AC No Show"
+        }
+      ]
     },
     "17": {
       "label": "W17",
@@ -2290,7 +2321,8 @@
           "stage": "DC No Show"
         }
       ],
-      "acCount": 0
+      "acCount": 0,
+      "acDeals": []
     },
     "18": {
       "label": "W18",
@@ -3082,7 +3114,8 @@
       "saSigned": 0,
       "dcCount": 0,
       "dcDeals": [],
-      "acCount": 0
+      "acCount": 0,
+      "acDeals": []
     },
     "19": {
       "label": "W19",
@@ -3892,11 +3925,20 @@
           "id": "60083591335",
           "company": "BlueSkyFWD - VA",
           "dcDate": "2026-05-13",
-          "attendance": "Yes",
-          "stage": "Deal Created"
+          "attendance": "DC Unqualified",
+          "stage": "Deal Unqualified"
         }
       ],
-      "acCount": 1
+      "acCount": 1,
+      "acDeals": [
+        {
+          "id": "58479591797",
+          "company": "The Knight Group - Sales Representative",
+          "acDate": "2026-05-13",
+          "attendance": "Prospect no show",
+          "stage": "AC No Show"
+        }
+      ]
     },
     "20": {
       "label": "W20",
@@ -4710,7 +4752,16 @@
           "stage": "DC No Show"
         }
       ],
-      "acCount": 1
+      "acCount": 1,
+      "acDeals": [
+        {
+          "id": "58479591797",
+          "company": "The Knight Group - Sales Representative",
+          "acDate": "2026-05-13",
+          "attendance": "Prospect no show",
+          "stage": "AC No Show"
+        }
+      ]
     }
   },
   "monthly": [
@@ -4974,6 +5025,30 @@ function renderWeek(wk) {
       dcHtml += '</tr>';
     });
     setHTML('dc-companies-body', dcHtml);
+  }
+
+  /* AC companies table */
+  setEl('ac-week-badge', d.label);
+  var acDeals = d.acDeals || [];
+  if (acDeals.length === 0) {
+    setHTML('ac-companies-body', '<tr><td colspan="5" style="color:var(--muted)">No alignment calls scheduled this week.</td></tr>');
+  } else {
+    var acAttLabels = { 'Attended': 'AC Attended', 'No show': 'AC No Show', 'Rescheduled': 'AC Rescheduled', 'Yes': 'AC Scheduled', 'AC Unqualified': 'AC Unqualified', 'AC Skip': 'AC Skip' };
+    var acAttColors = { 'Attended': 'var(--green)', 'Yes': 'var(--cyan)', 'No show': 'var(--red)', 'Rescheduled': 'var(--yellow)', 'AC Unqualified': 'var(--muted)', 'AC Skip': 'var(--muted)' };
+    var acHtml = '';
+    acDeals.forEach(function(deal, i) {
+      var att   = deal.attendance || '';
+      var label = acAttLabels[att] || att || '—';
+      var color = acAttColors[att] || 'var(--muted)';
+      acHtml += '<tr>';
+      acHtml += '<td style="color:var(--muted)">' + (i + 1) + '</td>';
+      acHtml += '<td><strong>' + (deal.company || '—') + '</strong></td>';
+      acHtml += '<td>' + (deal.acDate || '—') + '</td>';
+      acHtml += '<td><span style="color:' + color + ';font-weight:600">' + label + '</span></td>';
+      acHtml += '<td style="color:var(--muted);font-size:12px">' + (deal.stage || '—') + '</td>';
+      acHtml += '</tr>';
+    });
+    setHTML('ac-companies-body', acHtml);
   }
   setHTML('kpi-contacts-sub', 'OA Business Development');
   setHTML('kpi-valid-sub', d.validStrict + ' Valid &middot; ' + d.validNI + ' Valid-NI');
