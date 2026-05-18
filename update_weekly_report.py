@@ -34,6 +34,13 @@ BD_PIPELINE_ID = "68218158"
 PORTAL_ID      = "44390857"
 MANILA_TZ      = timezone(timedelta(hours=8))
 
+# Outbound Paid sales cycles — used to group the Paid Outbound page by Deal Created Date.
+# Update this list as new cycles begin; UI will auto-default to the cycle that contains today.
+PAID_CYCLES = [
+    {"name": "1st Cycle", "start": "2026-03-01", "end": "2026-04-15"},
+    {"name": "2nd Cycle", "start": "2026-04-16", "end": "2026-05-30"},
+]
+
 HTML_FILE      = os.path.join(os.path.dirname(__file__), "bd-weekly-report.html")
 
 # ── HubSpot contact property names (confirmed via API schema discovery) ───────
@@ -650,6 +657,16 @@ def fetch_monthly_contacts(num_months=6):
 
 # ── PAID DEALS ────────────────────────────────────────────────────────────────
 
+def _cycle_for_date(iso_date):
+    """Return cycle name for a YYYY-MM-DD-ish iso date string, or None if unmatched."""
+    if not iso_date:
+        return None
+    d = iso_date[:10]
+    for c in PAID_CYCLES:
+        if c["start"] <= d <= c["end"]:
+            return c["name"]
+    return None
+
 def fetch_paid_deals():
     """Fetch deals with lead_source = 'Outbound Paid' and classify into HOT/ADVANCING/STALLED/CLOSED."""
     filters = [
@@ -657,17 +674,20 @@ def fetch_paid_deals():
         {"propertyName": "lead_source", "operator": "EQ", "value": "Outbound Paid"},
     ]
     props = ["dealname","dealstage","lead_source","paid_recruitment_date","hs_lastmodifieddate",
-             "amount","hs_is_closed_won","hs_probability"]
+             "amount","hs_is_closed_won","hs_probability","createdate"]
     deals = search_all_deals(filters, props)
     print(f"  Outbound Paid deals found: {len(deals)}")
 
     now = datetime.now(MANILA_TZ)
+    today_iso = now.strftime("%Y-%m-%d")
+    current_cycle = _cycle_for_date(today_iso) or (PAID_CYCLES[-1]["name"] if PAID_CYCLES else None)
     groups = {"HOT": [], "ADVANCING": [], "STALLED": [], "CLOSED": []}
 
     for d in deals:
         p      = d.get("properties", {})
         stage  = p.get("dealstage", "")
         lmod   = p.get("hs_lastmodifieddate", "")
+        cdate  = p.get("createdate", "")
         name   = p.get("dealname", "Unknown Deal")
         prob   = int(float(p.get("hs_probability") or 0) * 100) or None
 
@@ -680,14 +700,16 @@ def fetch_paid_deals():
         stage_label = STAGE_LABELS.get(stage, stage)
 
         entry = {
-            "id":      d["id"],
-            "company": name,
-            "role":    "",
-            "stage":   stage_label,
-            "prob":    prob,
-            "ageDays": age_days,
-            "lastMod": lmod[:10] if lmod else "",
-            "action":  "",
+            "id":          d["id"],
+            "company":     name,
+            "role":        "",
+            "stage":       stage_label,
+            "prob":        prob,
+            "ageDays":     age_days,
+            "lastMod":     lmod[:10] if lmod else "",
+            "createDate":  cdate[:10] if cdate else "",
+            "cycle":       _cycle_for_date(cdate),
+            "action":      "",
         }
 
         if stage == STAGES["ac_completed"]:
@@ -711,7 +733,12 @@ def fetch_paid_deals():
             entry["action"] = "Review and advance"
             groups["ADVANCING"].append(entry)
 
-    return {"lastQueried": now.strftime("%Y-%m-%d"), "groups": groups}
+    return {
+        "lastQueried":  now.strftime("%Y-%m-%d"),
+        "groups":       groups,
+        "cycles":       PAID_CYCLES,
+        "currentCycle": current_cycle,
+    }
 
 # ── HTML PATCH ────────────────────────────────────────────────────────────────
 
