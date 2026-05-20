@@ -34,11 +34,11 @@ BD_PIPELINE_ID = "68218158"
 PORTAL_ID      = "44390857"
 MANILA_TZ      = timezone(timedelta(hours=8))
 
-# Outbound Paid sales cycles — used to group the Paid Outbound page by Deal Created Date.
+# Outbound Paid sales cycles — used to group the Paid Outbound page by Discovery Call Date.
 # Update this list as new cycles begin; UI will auto-default to the cycle that contains today.
 PAID_CYCLES = [
-    {"name": "1st Cycle", "start": "2026-03-01", "end": "2026-04-15"},
-    {"name": "2nd Cycle", "start": "2026-04-16", "end": "2026-05-30"},
+    {"name": "1st Cycle", "start": "2026-03-15", "end": "2026-04-14"},
+    {"name": "2nd Cycle", "start": "2026-04-15", "end": "2026-05-31"},
 ]
 
 HTML_FILE      = os.path.join(os.path.dirname(__file__), "bd-weekly-report.html")
@@ -674,7 +674,7 @@ def fetch_paid_deals():
         {"propertyName": "lead_source", "operator": "EQ", "value": "Outbound Paid"},
     ]
     props = ["dealname","dealstage","lead_source","paid_recruitment_date","hs_lastmodifieddate",
-             "amount","hs_is_closed_won","hs_probability","createdate"]
+             "amount","hs_is_closed_won","hs_probability","createdate","discovery_call_date"]
     deals = search_all_deals(filters, props)
     print(f"  Outbound Paid deals found: {len(deals)}")
 
@@ -688,6 +688,7 @@ def fetch_paid_deals():
         stage  = p.get("dealstage", "")
         lmod   = p.get("hs_lastmodifieddate", "")
         cdate  = p.get("createdate", "")
+        dcdate = p.get("discovery_call_date", "")
         name   = p.get("dealname", "Unknown Deal")
         prob   = int(float(p.get("hs_probability") or 0) * 100) or None
 
@@ -708,7 +709,8 @@ def fetch_paid_deals():
             "ageDays":     age_days,
             "lastMod":     lmod[:10] if lmod else "",
             "createDate":  cdate[:10] if cdate else "",
-            "cycle":       _cycle_for_date(cdate),
+            "dcDate":      dcdate[:10] if dcdate else "",
+            "cycle":       _cycle_for_date(dcdate),
             "action":      "",
         }
 
