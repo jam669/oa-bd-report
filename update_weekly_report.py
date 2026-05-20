@@ -431,7 +431,7 @@ def fetch_dc_deals(start, end):
         {"propertyName": "discovery_call_date", "operator": "GTE", "value": str(_date_ms(start))},
         {"propertyName": "discovery_call_date", "operator": "LTE", "value": str(_date_ms(end))},
     ]
-    props = ["dealname", "discovery_call_date", "discovery_call_attendance", "dealstage"]
+    props = ["dealname", "discovery_call_date", "discovery_call_attendance", "dealstage", "lead_source"]
     results, after = [], None
     while True:
         body = {"filterGroups": [{"filters": filters}], "properties": props, "limit": 100}
@@ -453,6 +453,7 @@ def fetch_dc_deals(start, end):
             "company":    p.get("dealname", "Unknown"),
             "dcDate":     p.get("discovery_call_date", ""),
             "attendance": p.get("discovery_call_attendance", ""),
+            "leadSource": p.get("lead_source", "") or "",
             "stage":      STAGE_LABELS.get(p.get("dealstage", ""), p.get("dealstage", "")),
         })
     deals.sort(key=lambda x: x["dcDate"])
@@ -465,7 +466,7 @@ def fetch_ac_deals(start, end):
         {"propertyName": "alignment_call_date", "operator": "GTE", "value": str(_date_ms(start))},
         {"propertyName": "alignment_call_date", "operator": "LTE", "value": str(_date_ms(end))},
     ]
-    props = ["dealname", "alignment_call_date", "alignment_call_attendance", "dealstage"]
+    props = ["dealname", "alignment_call_date", "alignment_call_attendance", "dealstage", "lead_source"]
     results, after = [], None
     while True:
         body = {"filterGroups": [{"filters": filters}], "properties": props, "limit": 100}
@@ -487,6 +488,7 @@ def fetch_ac_deals(start, end):
             "company":    p.get("dealname", "Unknown"),
             "acDate":     p.get("alignment_call_date", ""),
             "attendance": p.get("alignment_call_attendance", ""),
+            "leadSource": p.get("lead_source", "") or "",
             "stage":      STAGE_LABELS.get(p.get("dealstage", ""), p.get("dealstage", "")),
         })
     deals.sort(key=lambda x: x["acDate"])
@@ -882,8 +884,13 @@ def backfill_missing_fields():
 
     patched = 0
     for wk_str, d in sorted(report["weeks"].items(), key=lambda x: int(x[0])):
+        def _has_lead_source(deal_list):
+            return all("leadSource" in x for x in (deal_list or []))
+
         if ("saSigned" in d and "dcCount" in d and "acCount" in d
-                and "acDeals" in d and "paidSettled" in d):
+                and "acDeals" in d and "paidSettled" in d
+                and _has_lead_source(d.get("dcDeals"))
+                and _has_lead_source(d.get("acDeals"))):
             print(f"  W{wk_str}: already complete, skipping")
             continue
 

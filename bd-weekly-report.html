@@ -626,13 +626,14 @@
             <tr>
               <th>#</th>
               <th>Company / Deal</th>
+              <th>Lead Source</th>
               <th>DC Date</th>
               <th>Attendance</th>
               <th>Current Stage</th>
             </tr>
           </thead>
           <tbody id="dc-companies-body">
-            <tr><td colspan="5" style="color:var(--muted)">Loading&hellip;</td></tr>
+            <tr><td colspan="6" style="color:var(--muted)">Loading&hellip;</td></tr>
           </tbody>
         </table>
       </div>
@@ -648,13 +649,14 @@
             <tr>
               <th>#</th>
               <th>Company / Deal</th>
+              <th>Lead Source</th>
               <th>AC Date</th>
               <th>Attendance</th>
               <th>Current Stage</th>
             </tr>
           </thead>
           <tbody id="ac-companies-body">
-            <tr><td colspan="5" style="color:var(--muted)">Loading&hellip;</td></tr>
+            <tr><td colspan="6" style="color:var(--muted)">Loading&hellip;</td></tr>
           </tbody>
         </table>
       </div>
@@ -1595,6 +1597,7 @@
           "company": "Brand Potential - Data Analyst and Graphic Designer",
           "dcDate": "2026-04-15",
           "attendance": "Attended",
+          "leadSource": "Outbound Paid",
           "stage": "DC Completed"
         },
         {
@@ -1602,6 +1605,7 @@
           "company": "Data Migrator - Data Migration Consultant and Data Analyst ",
           "dcDate": "2026-04-15",
           "attendance": "Attended",
+          "leadSource": "Outbound Paid",
           "stage": "DC Completed"
         },
         {
@@ -1609,6 +1613,7 @@
           "company": "V4 Consumer - Outbound Sales",
           "dcDate": "2026-04-17",
           "attendance": "DC Unqualified",
+          "leadSource": "Others",
           "stage": "Deal Unqualified"
         },
         {
@@ -1616,6 +1621,7 @@
           "company": "Blue Feather Designs - CAD Specialist",
           "dcDate": "2026-04-21",
           "attendance": "Attended",
+          "leadSource": "Others",
           "stage": "Hiring & Recruiting"
         }
       ],
@@ -1626,6 +1632,7 @@
           "company": "Legacy Advisory - Lender Representatives",
           "acDate": "2026-04-21",
           "attendance": "Prospect no show",
+          "leadSource": "Others",
           "stage": "AC No Show"
         }
       ],
@@ -2420,6 +2427,7 @@
           "company": "DC Center LLC - Cold Callers",
           "dcDate": "2026-04-22",
           "attendance": "Attended",
+          "leadSource": "Others",
           "stage": "DC Completed"
         },
         {
@@ -2427,6 +2435,7 @@
           "company": "Keith Millard - Customer support, Graphic designer",
           "dcDate": "2026-04-24",
           "attendance": "No show",
+          "leadSource": "Others",
           "stage": "DC No Show"
         },
         {
@@ -2434,6 +2443,7 @@
           "company": "Vista Film - Sales Representative and Lead Generation",
           "dcDate": "2026-04-27",
           "attendance": "No show",
+          "leadSource": "Others",
           "stage": "DC No Show"
         },
         {
@@ -2441,6 +2451,7 @@
           "company": "PixelAscend - Sales Closer",
           "dcDate": "2026-04-27",
           "attendance": "No show",
+          "leadSource": "Others",
           "stage": "DC No Show"
         }
       ],
@@ -4037,6 +4048,7 @@
           "company": "Asset Recovery - SDR",
           "dcDate": "2026-05-08",
           "attendance": "Attended",
+          "leadSource": "Company Page Inquiry",
           "stage": "DC Completed"
         },
         {
@@ -4044,6 +4056,7 @@
           "company": "Medicalstaff - SDR",
           "dcDate": "2026-05-11",
           "attendance": "Attended",
+          "leadSource": "Popup - Blacklist Countries",
           "stage": "DC Completed"
         },
         {
@@ -4051,6 +4064,7 @@
           "company": "BlueSkyFWD - VA",
           "dcDate": "2026-05-13",
           "attendance": "DC Unqualified",
+          "leadSource": "Others",
           "stage": "Deal Unqualified"
         }
       ],
@@ -4061,6 +4075,7 @@
           "company": "The Knight Group - Sales Representative",
           "acDate": "2026-05-13",
           "attendance": "Prospect no show",
+          "leadSource": "Outbound Paid",
           "stage": "AC No Show"
         }
       ],
@@ -4861,6 +4876,7 @@
           "company": "Tonic DNA - 2D Harmony Animator",
           "dcDate": "2026-05-14",
           "attendance": "Attended",
+          "leadSource": "Outbound Paid",
           "stage": "DC Completed"
         },
         {
@@ -4868,6 +4884,7 @@
           "company": "njsportsspine.com - Data Analyst, Customer service rep and Benefit verifications rep",
           "dcDate": "2026-05-16",
           "attendance": "No show",
+          "leadSource": "Outbound Paid",
           "stage": "DC No Show"
         },
         {
@@ -4875,6 +4892,7 @@
           "company": "Travel Expert - Travel Administrator or Concierge Support Specialist",
           "dcDate": "2026-05-19",
           "attendance": "No show",
+          "leadSource": "Outbound Paid",
           "stage": "DC No Show"
         },
         {
@@ -4882,6 +4900,7 @@
           "company": "Scotland's Wild Tours - CSR",
           "dcDate": "2026-05-20",
           "attendance": "Attended",
+          "leadSource": "Outbound Paid",
           "stage": "DC Completed"
         }
       ],
@@ -5134,7 +5153,7 @@ function renderWeek(wk) {
   setEl('dc-week-badge', d.label);
   var dcDeals = d.dcDeals || [];
   if (dcDeals.length === 0) {
-    setHTML('dc-companies-body', '<tr><td colspan="5" style="color:var(--muted)">No discovery calls scheduled this week.</td></tr>');
+    setHTML('dc-companies-body', '<tr><td colspan="6" style="color:var(--muted)">No discovery calls scheduled this week.</td></tr>');
   } else {
     var attLabels = { 'Attended': 'DC Attended', 'No show': 'DC No Show', 'Rescheduled': 'DC Rescheduled', 'Yes': 'DC Scheduled', 'DC Unqualified': 'DC Unqualified', 'DC Skip': 'DC Skip' };
     var attColors = { 'Attended': 'var(--green)', 'Yes': 'var(--cyan)', 'No show': 'var(--red)', 'Rescheduled': 'var(--yellow)', 'DC Unqualified': 'var(--muted)', 'DC Skip': 'var(--muted)' };
@@ -5146,6 +5165,7 @@ function renderWeek(wk) {
       dcHtml += '<tr>';
       dcHtml += '<td style="color:var(--muted)">' + (i + 1) + '</td>';
       dcHtml += '<td><strong>' + (deal.company || '—') + '</strong></td>';
+      dcHtml += '<td style="color:var(--muted);font-size:12px">' + (deal.leadSource || '—') + '</td>';
       dcHtml += '<td>' + (deal.dcDate || '—') + '</td>';
       dcHtml += '<td><span style="color:' + color + ';font-weight:600">' + label + '</span></td>';
       dcHtml += '<td style="color:var(--muted);font-size:12px">' + (deal.stage || '—') + '</td>';
@@ -5158,7 +5178,7 @@ function renderWeek(wk) {
   setEl('ac-week-badge', d.label);
   var acDeals = d.acDeals || [];
   if (acDeals.length === 0) {
-    setHTML('ac-companies-body', '<tr><td colspan="5" style="color:var(--muted)">No alignment calls scheduled this week.</td></tr>');
+    setHTML('ac-companies-body', '<tr><td colspan="6" style="color:var(--muted)">No alignment calls scheduled this week.</td></tr>');
   } else {
     var acAttLabels = { 'Attended': 'AC Attended', 'No show': 'AC No Show', 'Rescheduled': 'AC Rescheduled', 'Yes': 'AC Scheduled', 'AC Unqualified': 'AC Unqualified', 'AC Skip': 'AC Skip' };
     var acAttColors = { 'Attended': 'var(--green)', 'Yes': 'var(--cyan)', 'No show': 'var(--red)', 'Rescheduled': 'var(--yellow)', 'AC Unqualified': 'var(--muted)', 'AC Skip': 'var(--muted)' };
@@ -5170,6 +5190,7 @@ function renderWeek(wk) {
       acHtml += '<tr>';
       acHtml += '<td style="color:var(--muted)">' + (i + 1) + '</td>';
       acHtml += '<td><strong>' + (deal.company || '—') + '</strong></td>';
+      acHtml += '<td style="color:var(--muted);font-size:12px">' + (deal.leadSource || '—') + '</td>';
       acHtml += '<td>' + (deal.acDate || '—') + '</td>';
       acHtml += '<td><span style="color:' + color + ';font-weight:600">' + label + '</span></td>';
       acHtml += '<td style="color:var(--muted);font-size:12px">' + (deal.stage || '—') + '</td>';
