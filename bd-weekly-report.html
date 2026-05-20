@@ -5707,7 +5707,7 @@ function renderPaidDeals() {
   var hot        = g.HOT.length;
   var closedLost = g.CLOSED.filter(function(d){ return d.closedWon === false; }).length;
   var dcAttended = (g.HOT.concat(g.ADVANCING, g.STALLED, g.CLOSED))
-                     .filter(function(d){ return d.dcAttendance === 'Attended'; }).length;
+                     .filter(function(d){ return d.dcAttendance === 'Attended' || d.dcAttendance === 'DC Unqualified'; }).length;
   setEl('pd-kpi-total',        total);
   setEl('pd-kpi-active',       active);
   setEl('pd-kpi-hot',          hot);
