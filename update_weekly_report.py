@@ -674,7 +674,8 @@ def fetch_paid_deals():
         {"propertyName": "lead_source", "operator": "EQ", "value": "Outbound Paid"},
     ]
     props = ["dealname","dealstage","lead_source","paid_recruitment_date","hs_lastmodifieddate",
-             "amount","hs_is_closed_won","hs_probability","createdate","discovery_call_date"]
+             "amount","hs_is_closed_won","hs_probability","createdate","discovery_call_date",
+             "discovery_call_attendance"]
     deals = search_all_deals(filters, props)
     print(f"  Outbound Paid deals found: {len(deals)}")
 
@@ -689,6 +690,7 @@ def fetch_paid_deals():
         lmod   = p.get("hs_lastmodifieddate", "")
         cdate  = p.get("createdate", "")
         dcdate = p.get("discovery_call_date", "")
+        dcatt  = p.get("discovery_call_attendance", "")
         name   = p.get("dealname", "Unknown Deal")
         prob   = int(float(p.get("hs_probability") or 0) * 100) or None
 
@@ -710,6 +712,7 @@ def fetch_paid_deals():
             "lastMod":     lmod[:10] if lmod else "",
             "createDate":  cdate[:10] if cdate else "",
             "dcDate":      dcdate[:10] if dcdate else "",
+            "dcAttendance": dcatt,
             "cycle":       _cycle_for_date(dcdate),
             "action":      "",
         }
