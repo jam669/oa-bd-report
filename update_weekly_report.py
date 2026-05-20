@@ -424,6 +424,49 @@ def _fetch_deal_date_count(date_prop, start, end):
     r.raise_for_status()
     return r.json().get("total", 0)
 
+def _fetch_deal_date_list(date_prop, start, end, date_field):
+    """Fetch BD pipeline deals where date_prop falls in [start, end]. Returns deals tagged with date_field."""
+    filters = [
+        {"propertyName": "pipeline",  "operator": "EQ",  "value": BD_PIPELINE_ID},
+        {"propertyName": date_prop,   "operator": "GTE", "value": str(_date_ms(start))},
+        {"propertyName": date_prop,   "operator": "LTE", "value": str(_date_ms(end))},
+    ]
+    props = ["dealname", date_prop, "dealstage", "lead_source", "amount"]
+    results, after = [], None
+    while True:
+        body = {"filterGroups": [{"filters": filters}], "properties": props, "limit": 100}
+        if after:
+            body["after"] = after
+        r = requests.post(f"{BASE_URL}/crm/v3/objects/deals/search", headers=HEADERS, json=body)
+        r.raise_for_status()
+        data = r.json()
+        results.extend(data.get("results", []))
+        after = data.get("paging", {}).get("next", {}).get("after")
+        if not after:
+            break
+
+    deals = []
+    for d in results:
+        p = d.get("properties", {})
+        deals.append({
+            "id":         d["id"],
+            "company":    p.get("dealname", "Unknown"),
+            date_field:   p.get(date_prop, ""),
+            "leadSource": p.get("lead_source", "") or "",
+            "amount":     p.get("amount", "") or "",
+            "stage":      STAGE_LABELS.get(p.get("dealstage", ""), p.get("dealstage", "")),
+        })
+    deals.sort(key=lambda x: x.get(date_field, ""))
+    return deals
+
+def fetch_sa_deals(start, end):
+    """Fetch BD pipeline deals where pandadoc_signed falls in [start, end]."""
+    return _fetch_deal_date_list("pandadoc_signed", start, end, "signedDate")
+
+def fetch_deposit_deals(start, end):
+    """Fetch BD pipeline deals where paid_recruitment_date falls in [start, end]."""
+    return _fetch_deal_date_list("paid_recruitment_date", start, end, "paidDate")
+
 def fetch_dc_deals(start, end):
     """Fetch BD pipeline deals with discovery_call_date in [start, end], returning company list."""
     filters = [
@@ -889,6 +932,7 @@ def backfill_missing_fields():
 
         if ("saSigned" in d and "dcCount" in d and "acCount" in d
                 and "acDeals" in d and "paidSettled" in d
+                and "saDeals" in d and "depositDeals" in d
                 and _has_lead_source(d.get("dcDeals"))
                 and _has_lead_source(d.get("acDeals"))):
             print(f"  W{wk_str}: already complete, skipping")
@@ -900,14 +944,18 @@ def backfill_missing_fields():
             hour=23, minute=59, second=59, tzinfo=MANILA_TZ)
         print(f"  W{wk_str}: fetching missing fields ({d['startDate']} to {d['endDate']})…", flush=True)
 
-        d["saSigned"] = fetch_sa_signed_count(start, end)
+        sa_deals      = fetch_sa_deals(start, end)
+        d["saDeals"]  = sa_deals
+        d["saSigned"] = len(sa_deals)
         dc_deals      = fetch_dc_deals(start, end)
         d["dcCount"]  = len(dc_deals)
         d["dcDeals"]  = dc_deals
         ac_deals      = fetch_ac_deals(start, end)
         d["acCount"]  = len(ac_deals)
         d["acDeals"]  = ac_deals
-        d["paidSettled"] = _fetch_deal_date_count("paid_recruitment_date", start, end)
+        deposit_deals = fetch_deposit_deals(start, end)
+        d["depositDeals"] = deposit_deals
+        d["paidSettled"]  = len(deposit_deals)
 
         print(f"    SA={d['saSigned']} DC={d['dcCount']} AC={d['acCount']} Deposit={d['paidSettled']}")
         patched += 1
@@ -968,12 +1016,14 @@ def main():
     # Weekly deal metrics
     print("\n[3/5] Counting weekly deal metrics…")
     deals_count = fetch_deals_created_count(start, end)
-    sa_signed   = fetch_sa_signed_count(start, end)
-    dc_deals    = fetch_dc_deals(start, end)
-    dc_count    = len(dc_deals)
-    ac_deals    = fetch_ac_deals(start, end)
-    ac_count    = len(ac_deals)
-    paid_settled = _fetch_deal_date_count("paid_recruitment_date", start, end)
+    dc_deals       = fetch_dc_deals(start, end)
+    dc_count       = len(dc_deals)
+    ac_deals       = fetch_ac_deals(start, end)
+    ac_count       = len(ac_deals)
+    sa_deals       = fetch_sa_deals(start, end)
+    sa_signed      = len(sa_deals)
+    deposit_deals  = fetch_deposit_deals(start, end)
+    paid_settled   = len(deposit_deals)
     print(f"  Deals created: {deals_count} | SA: {sa_signed} | DC: {dc_count} | AC: {ac_count} | Deposit: {paid_settled}")
 
     # Top 50 outreach
@@ -1028,7 +1078,9 @@ def main():
         "dcDeals":           dc_deals,
         "acCount":           ac_count,
         "acDeals":           ac_deals,
+        "saDeals":           sa_deals,
         "paidSettled":       paid_settled,
+        "depositDeals":      deposit_deals,
     }
 
     # Patch HTML

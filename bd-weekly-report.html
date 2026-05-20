@@ -661,6 +661,52 @@
         </table>
       </div>
 
+      <!-- SA SIGNED COMPANY LIST -->
+      <div class="table-card" style="margin-bottom:28px" id="sa-companies-card">
+        <div class="table-header">
+          <h3>SA Signed This Week</h3>
+          <span class="badge badge-muted" id="sa-week-badge">W19</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Company / Deal</th>
+              <th>Lead Source</th>
+              <th>Signed Date</th>
+              <th>Amount</th>
+              <th>Current Stage</th>
+            </tr>
+          </thead>
+          <tbody id="sa-companies-body">
+            <tr><td colspan="6" style="color:var(--muted)">Loading&hellip;</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- DEPOSIT SETTLED COMPANY LIST -->
+      <div class="table-card" style="margin-bottom:28px" id="deposit-companies-card">
+        <div class="table-header">
+          <h3>Deposit Settled This Week</h3>
+          <span class="badge badge-muted" id="deposit-week-badge">W19</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Company / Deal</th>
+              <th>Lead Source</th>
+              <th>Paid Date</th>
+              <th>Amount</th>
+              <th>Current Stage</th>
+            </tr>
+          </thead>
+          <tbody id="deposit-companies-body">
+            <tr><td colspan="6" style="color:var(--muted)">Loading&hellip;</td></tr>
+          </tbody>
+        </table>
+      </div>
+
       <!-- TREND + BREAKDOWN CHART -->
       <div class="chart-row">
         <div class="chart-card">
@@ -1636,7 +1682,18 @@
           "stage": "AC No Show"
         }
       ],
-      "paidSettled": 1
+      "paidSettled": 1,
+      "saDeals": [],
+      "depositDeals": [
+        {
+          "id": "58479464845",
+          "company": "GavBiz - 1 Business Development Manager / 1 Technicians sku Manager",
+          "paidDate": "2026-04-17",
+          "leadSource": "Outbound Paid",
+          "amount": "600",
+          "stage": "Hiring & Recruiting"
+        }
+      ]
     },
     "17": {
       "label": "W17",
@@ -2457,7 +2514,18 @@
       ],
       "acCount": 0,
       "acDeals": [],
-      "paidSettled": 1
+      "paidSettled": 1,
+      "saDeals": [],
+      "depositDeals": [
+        {
+          "id": "59609927595",
+          "company": "Cubex (UK) Ltd - Commercial Manager",
+          "paidDate": "2026-04-28",
+          "leadSource": "Direct Email",
+          "amount": "600",
+          "stage": "Hiring & Recruiting"
+        }
+      ]
     },
     "18": {
       "label": "W18",
@@ -3251,7 +3319,9 @@
       "dcDeals": [],
       "acCount": 0,
       "acDeals": [],
-      "paidSettled": 0
+      "paidSettled": 0,
+      "saDeals": [],
+      "depositDeals": []
     },
     "19": {
       "label": "W19",
@@ -4079,7 +4149,18 @@
           "stage": "AC No Show"
         }
       ],
-      "paidSettled": 0
+      "paidSettled": 0,
+      "saDeals": [
+        {
+          "id": "51831982161",
+          "company": "IR Chiropractic - 2 VA",
+          "signedDate": "2026-05-07",
+          "leadSource": "Others",
+          "amount": "600",
+          "stage": "Hiring & Recruiting"
+        }
+      ],
+      "depositDeals": []
     },
     "20": {
       "label": "W20",
@@ -4906,7 +4987,9 @@
       ],
       "acCount": 0,
       "acDeals": [],
-      "paidSettled": 0
+      "paidSettled": 0,
+      "saDeals": [],
+      "depositDeals": []
     }
   },
   "monthly": [
@@ -5198,6 +5281,49 @@ function renderWeek(wk) {
     });
     setHTML('ac-companies-body', acHtml);
   }
+
+  /* SA signed table */
+  setEl('sa-week-badge', d.label);
+  var saDeals = d.saDeals || [];
+  if (saDeals.length === 0) {
+    setHTML('sa-companies-body', '<tr><td colspan="6" style="color:var(--muted)">No Service Agreements signed this week.</td></tr>');
+  } else {
+    var saHtml = '';
+    saDeals.forEach(function(deal, i) {
+      var amt = deal.amount ? '$' + Number(deal.amount).toLocaleString() : '—';
+      saHtml += '<tr>';
+      saHtml += '<td style="color:var(--muted)">' + (i + 1) + '</td>';
+      saHtml += '<td><strong>' + (deal.company || '—') + '</strong></td>';
+      saHtml += '<td style="color:var(--muted);font-size:12px">' + (deal.leadSource || '—') + '</td>';
+      saHtml += '<td>' + (deal.signedDate || '—') + '</td>';
+      saHtml += '<td style="color:var(--orange);font-weight:600">' + amt + '</td>';
+      saHtml += '<td style="color:var(--muted);font-size:12px">' + (deal.stage || '—') + '</td>';
+      saHtml += '</tr>';
+    });
+    setHTML('sa-companies-body', saHtml);
+  }
+
+  /* Deposit settled table */
+  setEl('deposit-week-badge', d.label);
+  var depositDeals = d.depositDeals || [];
+  if (depositDeals.length === 0) {
+    setHTML('deposit-companies-body', '<tr><td colspan="6" style="color:var(--muted)">No deposits settled this week.</td></tr>');
+  } else {
+    var depHtml = '';
+    depositDeals.forEach(function(deal, i) {
+      var amt = deal.amount ? '$' + Number(deal.amount).toLocaleString() : '—';
+      depHtml += '<tr>';
+      depHtml += '<td style="color:var(--muted)">' + (i + 1) + '</td>';
+      depHtml += '<td><strong>' + (deal.company || '—') + '</strong></td>';
+      depHtml += '<td style="color:var(--muted);font-size:12px">' + (deal.leadSource || '—') + '</td>';
+      depHtml += '<td>' + (deal.paidDate || '—') + '</td>';
+      depHtml += '<td style="color:var(--yellow);font-weight:600">' + amt + '</td>';
+      depHtml += '<td style="color:var(--muted);font-size:12px">' + (deal.stage || '—') + '</td>';
+      depHtml += '</tr>';
+    });
+    setHTML('deposit-companies-body', depHtml);
+  }
+
   setHTML('kpi-contacts-sub', 'OA Business Development');
   setHTML('kpi-valid-sub', d.validStrict + ' Valid &middot; ' + d.validNI + ' Valid-NI');
   setHTML('kpi-deals-sub', d.deals > 0 ? d.deals + ' BD pipeline' : 'BD pipeline');
