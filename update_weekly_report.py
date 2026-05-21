@@ -790,9 +790,157 @@ def fetch_paid_deals():
         "currentCycle": current_cycle,
     }
 
+# ── LONG VIEW: DC -> DEPOSIT CONVERSION TIME ─────────────────────────────────
+
+LONG_VIEW_START = "2025-01-01"
+
+def _batch_read_deal_contacts(deal_ids):
+    """Return {deal_id: [contact_id, ...]} via v4 batch associations."""
+    if not deal_ids:
+        return {}
+    out = {}
+    for i in range(0, len(deal_ids), 100):
+        inputs = [{"id": str(did)} for did in deal_ids[i:i+100]]
+        r = requests.post(
+            f"{BASE_URL}/crm/v4/associations/deals/contacts/batch/read",
+            headers=HEADERS, json={"inputs": inputs}
+        )
+        if r.status_code not in (200, 207):
+            continue
+        for item in r.json().get("results", []):
+            did = str(item.get("from", {}).get("id", ""))
+            out[did] = [str(a.get("toObjectId", "")) for a in item.get("to", [])]
+    return out
+
+def _batch_read_contacts(contact_ids, props):
+    """Batch v3 read of contacts. Returns {contact_id: properties_dict}."""
+    if not contact_ids:
+        return {}
+    out = {}
+    for i in range(0, len(contact_ids), 100):
+        inputs = [{"id": str(cid)} for cid in contact_ids[i:i+100]]
+        r = requests.post(
+            f"{BASE_URL}/crm/v3/objects/contacts/batch/read",
+            headers=HEADERS, json={"inputs": inputs, "properties": props}
+        )
+        if r.status_code not in (200, 207):
+            continue
+        for c in r.json().get("results", []):
+            out[str(c["id"])] = c.get("properties", {})
+    return out
+
+def fetch_long_view_analysis():
+    """Long View: time between Discovery Call Date and Paid Recruitment Date for OA BD
+    leads created since 2025-01-01.
+
+    Filter chain:
+      - BD pipeline deals where both discovery_call_date AND paid_recruitment_date are set
+      - At least one associated contact has lead_category = 'BD Lead' (OA Business Development)
+      - That contact was createdate >= 2025-01-01
+    """
+    print(f"\n[Long View] Fetching paid BD deals with DC dates since {LONG_VIEW_START}…")
+
+    filters = [
+        {"propertyName": "pipeline",              "operator": "EQ",           "value": BD_PIPELINE_ID},
+        {"propertyName": "paid_recruitment_date", "operator": "HAS_PROPERTY"},
+        {"propertyName": "discovery_call_date",   "operator": "HAS_PROPERTY"},
+    ]
+    props = ["dealname", "discovery_call_date", "paid_recruitment_date",
+             "lead_source", "amount", "dealstage"]
+    deals = search_all_deals(filters, props)
+    print(f"  BD paid deals (any date) with DC: {len(deals)}")
+
+    if not deals:
+        return {
+            "periodStart": LONG_VIEW_START,
+            "periodEnd":   datetime.now(MANILA_TZ).strftime("%Y-%m-%d"),
+            "stats":       {"count": 0, "avg": 0, "median": 0, "min": 0, "max": 0},
+            "buckets":     {},
+            "deals":       [],
+        }
+
+    deal_ids = [d["id"] for d in deals]
+    deal_to_contacts = _batch_read_deal_contacts(deal_ids)
+    all_contact_ids  = list({cid for cids in deal_to_contacts.values() for cid in cids})
+    print(f"  Associated contacts: {len(all_contact_ids)}")
+
+    contact_props = _batch_read_contacts(all_contact_ids,
+                                         [PROP_LEAD_CATEGORY, "createdate"])
+
+    rows = []
+    for d in deals:
+        did = d["id"]
+        p   = d.get("properties", {})
+        dc   = (p.get("discovery_call_date")   or "")[:10]
+        paid = (p.get("paid_recruitment_date") or "")[:10]
+        if not dc or not paid:
+            continue
+
+        matching = None
+        for cid in deal_to_contacts.get(did, []):
+            cp       = contact_props.get(cid, {})
+            lead_cat = cp.get(PROP_LEAD_CATEGORY, "")
+            cdate    = (cp.get("createdate") or "")[:10]
+            if lead_cat == OA_BD_VALUE and cdate >= LONG_VIEW_START:
+                matching = {"id": cid, "createdate": cdate}
+                break
+
+        if not matching:
+            continue
+
+        try:
+            days = (datetime.fromisoformat(paid) - datetime.fromisoformat(dc)).days
+        except Exception:
+            continue
+        if days < 0:
+            continue  # deposit paid before DC — likely data entry oddity
+
+        rows.append({
+            "dealId":         did,
+            "company":        p.get("dealname", "Unknown"),
+            "contactCreated": matching["createdate"],
+            "dcDate":         dc,
+            "paidDate":       paid,
+            "days":           days,
+            "leadSource":     p.get("lead_source", "") or "",
+            "amount":         p.get("amount", "") or "",
+            "stage":          STAGE_LABELS.get(p.get("dealstage", ""), p.get("dealstage", "")),
+        })
+
+    print(f"  Deals matching OA BD contact + 2025+ filter: {len(rows)}")
+
+    days_list = [r["days"] for r in rows]
+    if days_list:
+        srt = sorted(days_list)
+        n   = len(srt)
+        avg = sum(days_list) / n
+        med = srt[n // 2] if n % 2 == 1 else (srt[n // 2 - 1] + srt[n // 2]) / 2
+        stats = {"count": n, "avg": round(avg, 1), "median": float(med),
+                 "min": min(days_list), "max": max(days_list)}
+    else:
+        stats = {"count": 0, "avg": 0, "median": 0, "min": 0, "max": 0}
+
+    buckets = {"0–7": 0, "8–14": 0, "15–30": 0, "31–60": 0, "61–90": 0, "90+": 0}
+    for v in days_list:
+        if v <= 7:    buckets["0–7"]   += 1
+        elif v <= 14: buckets["8–14"]  += 1
+        elif v <= 30: buckets["15–30"] += 1
+        elif v <= 60: buckets["31–60"] += 1
+        elif v <= 90: buckets["61–90"] += 1
+        else:         buckets["90+"]   += 1
+
+    rows.sort(key=lambda r: r["paidDate"], reverse=True)
+    return {
+        "periodStart": LONG_VIEW_START,
+        "periodEnd":   datetime.now(MANILA_TZ).strftime("%Y-%m-%d"),
+        "stats":       stats,
+        "buckets":     buckets,
+        "deals":       rows,
+    }
+
 # ── HTML PATCH ────────────────────────────────────────────────────────────────
 
-def update_html(week_num, week_data, paid_deals_data, monthly_data, today):
+def update_html(week_num, week_data, paid_deals_data, monthly_data, today, long_view=None):
     print(f"  Patching {HTML_FILE}…")
     with open(HTML_FILE, "r", encoding="utf-8") as f:
         html = f.read()
@@ -815,6 +963,10 @@ def update_html(week_num, week_data, paid_deals_data, monthly_data, today):
 
     # 5. Overwrite monthly contacts
     report["monthly"] = monthly_data
+
+    # 6. Overwrite Long View analysis (if provided)
+    if long_view is not None:
+        report["longView"] = long_view
 
     new_json = json.dumps(report, indent=2, ensure_ascii=False, default=str)
     new_tag  = f'<script id="report-data" type="application/json">\n{new_json}\n</script>'
@@ -1040,6 +1192,9 @@ def main():
     monthly_data = fetch_monthly_contacts(num_months=6)
     print(f"  Monthly data: {len(monthly_data)} months fetched")
 
+    # Long View analysis (DC -> Paid conversion time, since 2025-01-01)
+    long_view = fetch_long_view_analysis()
+
     # Build week object
     valid_total = stats["valid_strict"] + stats["valid_ni"]
     week_data = {
@@ -1085,7 +1240,7 @@ def main():
 
     # Patch HTML
     print("\n[Patching HTML]")
-    update_html(week_num, week_data, paid_deals, monthly_data, today)
+    update_html(week_num, week_data, paid_deals, monthly_data, today, long_view)
 
     print(f"\nDone - Week {week_num} ({dates_label}) committed to HTML.")
     print(f"  Next update: next Tuesday\n")

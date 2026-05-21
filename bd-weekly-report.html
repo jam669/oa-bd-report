@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="data-last-updated" content="2026-05-20" />
+  <meta name="data-last-updated" content="2026-05-22" />
   <meta name="data-cycle" content="Tuesday-Monday" />
   <title>OA BD Weekly Report</title>
   <script>
@@ -493,7 +493,7 @@
     <h1>OA <span>BD Weekly Report</span></h1>
   </div>
   <div class="header-right">
-    <div class="week-badge" id="currentWeekLabel">W20 &middot; May 14–20, 2026</div>
+    <div class="week-badge" id="currentWeekLabel">W20 &middot; May 16–22, 2026</div>
     <div id="freshnessbadge" class="fresh-badge">&#9679; LIVE DATA</div>
     <button class="btn btn-ghost" onclick="window.print()">&#9113; Print</button>
     <button class="btn" onclick="exportReport()">&#8595; Export</button>
@@ -516,6 +516,9 @@
     </div>
     <div class="nav-item" onclick="switchPage('deals', this)">
       <span class="nav-icon">&#128200;</span> Deals Progress
+    </div>
+    <div class="nav-item" onclick="switchPage('longview', this)">
+      <span class="nav-icon">&#128302;</span> Long View
     </div>
     <hr class="sidebar-divider" />
     <div class="nav-item" onclick="switchPage('funnel', this)">
@@ -553,9 +556,9 @@
         <button class="week-tab" data-week="17" onclick="selectWeek(17, this)">W17 Apr 22–28</button>
         <button class="week-tab" data-week="18" onclick="selectWeek(18, this)">W18 Apr 29–May 5</button>
         <button class="week-tab" data-week="19" onclick="selectWeek(19, this)">W19 May 7–13</button>
-        <button class="week-tab active" data-week="20" onclick="selectWeek(20, this)">W20 May 14–20</button>
+        <button class="week-tab active" data-week="20" onclick="selectWeek(20, this)">W20 May 16–22</button>
       </div>
-      <span class="next-update" id="nextUpdateLabel">Next update: May 27, 2026</span>
+      <span class="next-update" id="nextUpdateLabel">Next update: May 29, 2026</span>
     </div>
 
     <!-- ===== PAGE: EXECUTIVE SUMMARY ===== -->
@@ -1310,6 +1313,81 @@
       </div>
     </div>
 
+    <!-- ===== PAGE: LONG VIEW ===== -->
+    <div class="page" id="page-longview">
+      <div class="section-title">Long View &mdash; DC to Deposit Conversion Time</div>
+      <div class="section-sub">
+        OA Business Development &middot; Contacts created from
+        <span id="lv-period-start">2025-01-01</span> to
+        <span id="lv-period-end">—</span>
+        &middot; Time between Discovery Call Date and Paid Recruitment Date
+      </div>
+
+      <!-- KPI cards -->
+      <div class="kpi-grid" style="margin-bottom:24px">
+        <div class="kpi-card" style="--accent-color:var(--accent)">
+          <div class="kpi-label">Paid Deals</div>
+          <div class="kpi-value" style="color:var(--accent)" id="lv-count">—</div>
+          <div class="kpi-sub">In analysis</div>
+        </div>
+        <div class="kpi-card" style="--accent-color:var(--yellow)">
+          <div class="kpi-label">Avg Days DC to Deposit</div>
+          <div class="kpi-value" style="color:var(--yellow)" id="lv-avg">—</div>
+          <div class="kpi-sub">Mean conversion time</div>
+        </div>
+        <div class="kpi-card" style="--accent-color:var(--cyan)">
+          <div class="kpi-label">Median Days</div>
+          <div class="kpi-value" style="color:var(--cyan)" id="lv-median">—</div>
+          <div class="kpi-sub">Typical conversion</div>
+        </div>
+        <div class="kpi-card" style="--accent-color:var(--green)">
+          <div class="kpi-label">Fastest</div>
+          <div class="kpi-value" style="color:var(--green)" id="lv-min">—</div>
+          <div class="kpi-sub">Min days</div>
+        </div>
+        <div class="kpi-card" style="--accent-color:var(--red)">
+          <div class="kpi-label">Slowest</div>
+          <div class="kpi-value" style="color:var(--red)" id="lv-max">—</div>
+          <div class="kpi-sub">Max days</div>
+        </div>
+      </div>
+
+      <!-- Distribution chart -->
+      <div class="chart-card" style="margin-bottom:28px">
+        <div class="table-header">
+          <h3>Time-to-Deposit Distribution</h3>
+          <span class="badge badge-muted">Days between DC and Paid Recruitment</span>
+        </div>
+        <canvas id="lvDistChart" style="max-height:260px"></canvas>
+      </div>
+
+      <!-- Deal table -->
+      <div class="table-card">
+        <div class="table-header">
+          <h3>Converted Deals</h3>
+          <span class="badge badge-blue">OA Business Development</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Company / Deal</th>
+              <th>Lead Source</th>
+              <th>Contact Created</th>
+              <th>DC Date</th>
+              <th>Paid Date</th>
+              <th>Days DC&rarr;Paid</th>
+              <th>Amount</th>
+              <th>Stage</th>
+            </tr>
+          </thead>
+          <tbody id="lv-deals-body">
+            <tr><td colspan="9" style="color:var(--muted)">Loading&hellip;</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -1319,13 +1397,13 @@
 <script id="report-data" type="application/json">
 {
   "meta": {
-    "lastUpdated": "2026-05-20",
+    "lastUpdated": "2026-05-22",
     "cycle": "Tuesday-Monday",
     "category": "OA Business Development",
     "hubspotPortal": "44390857"
   },
   "paidDeals": {
-    "lastQueried": "2026-05-20",
+    "lastQueried": "2026-05-22",
     "groups": {
       "HOT": [
         {
@@ -1334,8 +1412,8 @@
           "role": "",
           "stage": "AC Completed",
           "prob": null,
-          "ageDays": 1,
-          "lastMod": "2026-05-19",
+          "ageDays": 0,
+          "lastMod": "2026-05-21",
           "createDate": "2026-03-26",
           "dcDate": "2026-03-30",
           "dcAttendance": "Attended",
@@ -1350,7 +1428,7 @@
           "role": "",
           "stage": "DC Completed",
           "prob": null,
-          "ageDays": 4,
+          "ageDays": 5,
           "lastMod": "2026-05-15",
           "createDate": "2026-03-27",
           "dcDate": "2026-03-31",
@@ -1364,7 +1442,7 @@
           "role": "",
           "stage": "DC Completed",
           "prob": null,
-          "ageDays": 6,
+          "ageDays": 7,
           "lastMod": "2026-05-14",
           "createDate": "2026-03-27",
           "dcDate": "2026-04-15",
@@ -1378,7 +1456,7 @@
           "role": "",
           "stage": "DC Completed",
           "prob": null,
-          "ageDays": 9,
+          "ageDays": 10,
           "lastMod": "2026-05-11",
           "createDate": "2026-03-27",
           "dcDate": "2026-04-15",
@@ -1393,7 +1471,7 @@
           "stage": "DC Completed",
           "prob": null,
           "ageDays": 0,
-          "lastMod": "2026-05-20",
+          "lastMod": "2026-05-21",
           "createDate": "2026-05-08",
           "dcDate": "2026-05-14",
           "dcAttendance": "Attended",
@@ -1407,7 +1485,7 @@
           "stage": "DC Completed",
           "prob": null,
           "ageDays": 0,
-          "lastMod": "2026-05-20",
+          "lastMod": "2026-05-21",
           "createDate": "2026-05-19",
           "dcDate": "2026-05-20",
           "dcAttendance": "Attended",
@@ -1436,7 +1514,7 @@
           "role": "",
           "stage": "DC No Show",
           "prob": null,
-          "ageDays": 23,
+          "ageDays": 24,
           "lastMod": "2026-04-27",
           "createDate": "2026-03-27",
           "dcDate": "2026-04-01",
@@ -1450,7 +1528,7 @@
           "role": "",
           "stage": "DC No Show",
           "prob": null,
-          "ageDays": 16,
+          "ageDays": 17,
           "lastMod": "2026-05-03",
           "createDate": "2026-03-27",
           "dcDate": "2026-04-06",
@@ -1464,8 +1542,8 @@
           "role": "",
           "stage": "DC No Show",
           "prob": null,
-          "ageDays": 1,
-          "lastMod": "2026-05-19",
+          "ageDays": 0,
+          "lastMod": "2026-05-20",
           "createDate": "2026-03-27",
           "dcDate": "2026-04-01",
           "dcAttendance": "No show",
@@ -1478,7 +1556,7 @@
           "role": "",
           "stage": "AC No Show",
           "prob": null,
-          "ageDays": 7,
+          "ageDays": 8,
           "lastMod": "2026-05-12",
           "createDate": "2026-03-27",
           "dcDate": "2026-04-11",
@@ -1492,7 +1570,7 @@
           "role": "",
           "stage": "Deal Unqualified",
           "prob": null,
-          "ageDays": 9,
+          "ageDays": 10,
           "lastMod": "2026-05-10",
           "createDate": "2026-04-08",
           "dcDate": "2026-04-10",
@@ -1506,7 +1584,7 @@
           "role": "",
           "stage": "DC No Show",
           "prob": null,
-          "ageDays": 1,
+          "ageDays": 2,
           "lastMod": "2026-05-19",
           "createDate": "2026-04-08",
           "dcDate": "2026-04-09",
@@ -1520,7 +1598,7 @@
           "role": "",
           "stage": "DC No Show",
           "prob": null,
-          "ageDays": 0,
+          "ageDays": 1,
           "lastMod": "2026-05-20",
           "createDate": "2026-05-13",
           "dcDate": "2026-05-16",
@@ -1534,8 +1612,8 @@
           "role": "",
           "stage": "DC No Show",
           "prob": null,
-          "ageDays": 1,
-          "lastMod": "2026-05-18",
+          "ageDays": 0,
+          "lastMod": "2026-05-21",
           "createDate": "2026-05-15",
           "dcDate": "2026-05-19",
           "dcAttendance": "No show",
@@ -1550,7 +1628,7 @@
           "role": "",
           "stage": "Closed Lost",
           "prob": null,
-          "ageDays": 36,
+          "ageDays": 37,
           "lastMod": "2026-04-13",
           "createDate": "2026-03-16",
           "dcDate": "2026-03-20",
@@ -1565,7 +1643,7 @@
           "role": "",
           "stage": "Closed Lost",
           "prob": null,
-          "ageDays": 22,
+          "ageDays": 23,
           "lastMod": "2026-04-28",
           "createDate": "2026-03-26",
           "dcDate": "2026-03-31",
@@ -1580,7 +1658,7 @@
           "role": "",
           "stage": "Hiring & Recruiting",
           "prob": null,
-          "ageDays": 5,
+          "ageDays": 6,
           "lastMod": "2026-05-15",
           "createDate": "2026-03-27",
           "dcDate": "2026-04-08",
@@ -4164,29 +4242,29 @@
     },
     "20": {
       "label": "W20",
-      "dates": "May 14–20",
+      "dates": "May 16–22",
       "year": 2026,
-      "startDate": "2026-05-14",
-      "endDate": "2026-05-20",
-      "contacts": 111,
-      "valid": 10,
-      "validStrict": 5,
+      "startDate": "2026-05-16",
+      "endDate": "2026-05-22",
+      "contacts": 64,
+      "valid": 7,
+      "validStrict": 2,
       "validNI": 5,
-      "connected": 3,
-      "qualified": 10,
-      "deals": 2,
-      "dealsAll": 2,
-      "spam": 10,
-      "jobseekers": 7,
-      "serviceProviders": 2,
-      "unqualified": 62,
-      "noValidity": 20,
-      "inbound": 27,
+      "connected": 0,
+      "qualified": 7,
+      "deals": 1,
+      "dealsAll": 1,
+      "spam": 5,
+      "jobseekers": 8,
+      "serviceProviders": 4,
+      "unqualified": 34,
+      "noValidity": 6,
+      "inbound": 22,
       "outbound": 0,
       "sp": 0,
-      "other": 84,
+      "other": 42,
       "inboundValid": 2,
-      "inboundConnected": 1,
+      "inboundConnected": 0,
       "outboundValid": 0,
       "outboundConnected": 0,
       "spValid": 0,
@@ -4209,6 +4287,21 @@
         },
         {
           "rank": 2,
+          "name": "Howard Huxham",
+          "title": "Owner / V.P. / Executive Producer",
+          "company": "TONIC DNA",
+          "email": "howard@tonicdna.com",
+          "phone": "+1 514-917-1609",
+          "country": "",
+          "deals": 1,
+          "tier": "CLOSE",
+          "score": 97,
+          "why": "Owner / v.p. / executive producer at tonic dna. Connected with active deal — strong close signal.",
+          "action": "Follow up on open deal — confirm requirements and timeline to close.",
+          "hsId": "220120642676"
+        },
+        {
+          "rank": 3,
           "name": "Jason Knight",
           "title": "Principal Broker/ Owner",
           "company": "Ivie Avenue Real Estate",
@@ -4223,7 +4316,7 @@
           "hsId": "210976197246"
         },
         {
-          "rank": 3,
+          "rank": 4,
           "name": "Josh Bishop",
           "title": "Managing Director",
           "company": "EPM ENGINEERING GROUP",
@@ -4238,22 +4331,67 @@
           "hsId": "208741228080"
         },
         {
-          "rank": 4,
-          "name": "Josh Hunt",
-          "title": "Managing Director",
-          "company": "Brand Potential Consulting",
-          "email": "josh.hunt@brandpotential.com",
-          "phone": "+447733463137",
+          "rank": 5,
+          "name": "Kate Tawhai",
+          "title": "Owner and Travel Expert",
+          "company": "Travel Expert New Zealand",
+          "email": "kate@travelexpert.co.nz",
+          "phone": "+64212166468",
           "country": "",
           "deals": 1,
           "tier": "CLOSE",
           "score": 97,
-          "why": "Managing director at brand potential consulting. Connected with active deal — strong close signal.",
+          "why": "Owner and travel expert at travel expert new zealand. Connected with active deal — strong close signal.",
           "action": "Follow up on open deal — confirm requirements and timeline to close.",
-          "hsId": "204041357623"
+          "hsId": "221621688608"
         },
         {
-          "rank": 5,
+          "rank": 6,
+          "name": "Aaron Krause",
+          "title": "Managing Director of Operations",
+          "company": "(Individual)",
+          "email": "aaron.krause@assetrecoveryinc.com",
+          "phone": "",
+          "country": "",
+          "deals": 1,
+          "tier": "CLOSE",
+          "score": 87,
+          "why": "Managing director of operations at (individual). Connected with active deal — strong close signal.",
+          "action": "Follow up on open deal — confirm requirements and timeline to close.",
+          "hsId": "219873323920"
+        },
+        {
+          "rank": 7,
+          "name": "Andrew McClements",
+          "title": "Head of Operations",
+          "company": "Experience Scotland's Wild",
+          "email": "andrew@scotlandswild.com",
+          "phone": "+447349934230",
+          "country": "",
+          "deals": 1,
+          "tier": "CLOSE",
+          "score": 85,
+          "why": "Head of operations at experience scotland's wild. Connected with active deal — strong close signal.",
+          "action": "Follow up on open deal — confirm requirements and timeline to close.",
+          "hsId": "221620323353"
+        },
+        {
+          "rank": 8,
+          "name": "Frank Mayo",
+          "title": "Chief Operations Officer",
+          "company": "NJ Sports Spine & Wellness",
+          "email": "frank.mayo@njsportsspine.com",
+          "phone": "+1 201-951-0057",
+          "country": "",
+          "deals": 1,
+          "tier": "CLOSE",
+          "score": 85,
+          "why": "Chief operations officer at nj sports spine & wellness. Connected with active deal — strong close signal.",
+          "action": "Follow up on open deal — confirm requirements and timeline to close.",
+          "hsId": "216116110922"
+        },
+        {
+          "rank": 9,
           "name": "Sathya Shankar",
           "title": "Chief Executive Officer",
           "company": "Pyrumas Software Pvt Ltd",
@@ -4268,52 +4406,7 @@
           "hsId": "204460567450"
         },
         {
-          "rank": 6,
-          "name": "Adriana Stefan",
-          "title": "Account Director",
-          "company": "Etopia | Amazon Agency",
-          "email": "adriana@etopiaconsultancy.com",
-          "phone": "+44 75 5258 7989",
-          "country": "",
-          "deals": 0,
-          "tier": "ADVANCE",
-          "score": 82,
-          "why": "Account director at etopia | amazon agency. Connected — relationship ready, no deal yet.",
-          "action": "Create deal — send capabilities deck and schedule discovery call.",
-          "hsId": "204099408033"
-        },
-        {
-          "rank": 7,
-          "name": "Billy Parker",
-          "title": "Executive Vice President",
-          "company": "BOWA Construction",
-          "email": "bparker@thebowagroup.com",
-          "phone": "+13124047574",
-          "country": "",
-          "deals": 0,
-          "tier": "ADVANCE",
-          "score": 82,
-          "why": "Executive vice president at bowa construction. Connected — relationship ready, no deal yet.",
-          "action": "Create deal — send capabilities deck and schedule discovery call.",
-          "hsId": "204094331979"
-        },
-        {
-          "rank": 8,
-          "name": "Bob Bui",
-          "title": "Principal Software Architect/Engineering Manager",
-          "company": "FPT Americas",
-          "email": "thangbn1@fpt.com",
-          "phone": "",
-          "country": "",
-          "deals": 0,
-          "tier": "ADVANCE",
-          "score": 82,
-          "why": "Principal software architect/engineering manager at fpt americas. Connected — relationship ready, no deal yet.",
-          "action": "Create deal — send capabilities deck and schedule discovery call.",
-          "hsId": "214400069208"
-        },
-        {
-          "rank": 9,
+          "rank": 10,
           "name": "David Illingworth",
           "title": "Director",
           "company": "Piledesigns Ltd",
@@ -4328,7 +4421,7 @@
           "hsId": "205829562239"
         },
         {
-          "rank": 10,
+          "rank": 11,
           "name": "Dipesh Patidar",
           "title": "Founder",
           "company": "Patidar digital hub",
@@ -4343,37 +4436,7 @@
           "hsId": "204311194643"
         },
         {
-          "rank": 11,
-          "name": "Jack Phipps",
-          "title": "Director, Enterprise and Technology",
-          "company": "Eyeful Presentations",
-          "email": "jphipps@eyefulpresentations.com",
-          "phone": "+447500874448",
-          "country": "",
-          "deals": 0,
-          "tier": "ADVANCE",
-          "score": 82,
-          "why": "Director, enterprise and technology at eyeful presentations. Connected — relationship ready, no deal yet.",
-          "action": "Create deal — send capabilities deck and schedule discovery call.",
-          "hsId": "204098887773"
-        },
-        {
           "rank": 12,
-          "name": "Kevin Byrne",
-          "title": "Director",
-          "company": "EB GAS SERVICES",
-          "email": "kevin@ebgasservices.com",
-          "phone": "+447979534795",
-          "country": "",
-          "deals": 0,
-          "tier": "ADVANCE",
-          "score": 82,
-          "why": "Director at eb gas services. Connected — relationship ready, no deal yet.",
-          "action": "Create deal — send capabilities deck and schedule discovery call.",
-          "hsId": "204098887764"
-        },
-        {
-          "rank": 13,
           "name": "Matt Rickard",
           "title": "Director of Business Development",
           "company": "Oaktree Interiors",
@@ -4388,7 +4451,7 @@
           "hsId": "205832002449"
         },
         {
-          "rank": 14,
+          "rank": 13,
           "name": "Paul McCabe",
           "title": "Company Co-Founder & Co-Owner",
           "company": "Design Foundry MEP Ltd",
@@ -4403,142 +4466,112 @@
           "hsId": "205835413428"
         },
         {
+          "rank": 14,
+          "name": "Sharon Andersson",
+          "title": "Owner",
+          "company": "BlueSkyFWD",
+          "email": "sharon@blueskyfwd.com",
+          "phone": "+16786155923",
+          "country": "",
+          "deals": 0,
+          "tier": "ADVANCE",
+          "score": 82,
+          "why": "Owner at blueskyfwd. Connected — relationship ready, no deal yet.",
+          "action": "Create deal — send capabilities deck and schedule discovery call.",
+          "hsId": "220470380416"
+        },
+        {
           "rank": 15,
-          "name": "Anthony Grey",
-          "title": "Client Director - Strategic Accounts",
-          "company": "FUJIFILM Business Innovation Australia",
-          "email": "anthony.grey@fujifilm.com",
+          "name": "Eric Menchaca",
+          "title": "Vice President Quality Assurance",
+          "company": "Fortune-Johnson LLC",
+          "email": "emenchaca@fortune-johnson.com",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 75,
-          "why": "Client director - strategic accounts at fujifilm business innovation australia. Valid bd lead — initial outreach stage.",
+          "why": "Vice president quality assurance at fortune-johnson llc. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "214397251999"
+          "hsId": "205794003969"
         },
         {
           "rank": 16,
-          "name": "Dan Hayward",
-          "title": "BNI Director Consultant",
-          "company": "BNI Berkshire",
-          "email": "dan@bni-berkshire.co.uk",
+          "name": "Jason Reynolds",
+          "title": "Director, Technology Solutions & Training",
+          "company": "Fortune-Johnson LLC",
+          "email": "jreynolds@fortune-johnson.com",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 75,
-          "why": "Bni director consultant at bni berkshire. Valid bd lead — initial outreach stage.",
+          "why": "Director, technology solutions & training at fortune-johnson llc. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "204099010693"
+          "hsId": "205831873841"
         },
         {
           "rank": 17,
-          "name": "Daniel Farrugia",
-          "title": "Strategic Account Director",
-          "company": "FUJIFILM Business Innovation Australia",
-          "email": "daniel.farrugia.tm@fujifilm.com",
+          "name": "Jeffrey Carroll",
+          "title": "Vice President of Construction",
+          "company": "Fortune-Johnson LLC",
+          "email": "jcarroll@fortune-johnson.com",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 75,
-          "why": "Strategic account director at fujifilm business innovation australia. Valid bd lead — initial outreach stage.",
+          "why": "Vice president of construction at fortune-johnson llc. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "214400553875"
+          "hsId": "205831269470"
         },
         {
           "rank": 18,
-          "name": "Graham Ford",
-          "title": "CFO",
-          "company": "FUJIFILM Business Innovation Australia",
-          "email": "graham@epicenter.tv",
+          "name": "Jim Fowler",
+          "title": "Vice President of Quality Control",
+          "company": "Fortune-Johnson LLC",
+          "email": "fj@fortune-johnson.com",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 75,
-          "why": "Cfo at fujifilm business innovation australia. Valid bd lead — initial outreach stage.",
+          "why": "Vice president of quality control at fortune-johnson llc. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "214401282999"
+          "hsId": "205835569564"
         },
         {
           "rank": 19,
-          "name": "Mac Alexander",
-          "title": "Strategic Account Director",
-          "company": "FUJIFILM Business Innovation Australia",
-          "email": "mac.alexander.vq@fujifilm.com",
+          "name": "Michael Mitchell",
+          "title": "Vice President of Preconstruction and Business Development",
+          "company": "Fortune-Johnson LLC",
+          "email": "mmitchell@fortune-johnson.com",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 75,
-          "why": "Strategic account director at fujifilm business innovation australia. Valid bd lead — initial outreach stage.",
+          "why": "Vice president of preconstruction and business development at fortune-johnson llc. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "214399752601"
+          "hsId": "205833557254"
         },
         {
           "rank": 20,
-          "name": "Paul Cannon",
-          "title": "Metro Business Director - Master Agent",
-          "company": "FUJIFILM Business Innovation Australia",
-          "email": "paul.cannon@fujifilm.com",
+          "name": "Mike Flores",
+          "title": "Regional Director",
+          "company": "Fortune-Johnson LLC",
+          "email": "mflores@fortune-johnson.com",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 75,
-          "why": "Metro business director - master agent at fujifilm business innovation australia. Valid bd lead — initial outreach stage.",
+          "why": "Regional director at fortune-johnson llc. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "214397252001"
+          "hsId": "205835297034"
         },
         {
           "rank": 21,
-          "name": "Paul Winter",
-          "title": "Client Director",
-          "company": "FUJIFILM Business Innovation Australia",
-          "email": "paul.winter.wt@fujifilm.com",
-          "phone": "",
-          "country": "",
-          "deals": 0,
-          "tier": "PROSPECT",
-          "score": 75,
-          "why": "Client director at fujifilm business innovation australia. Valid bd lead — initial outreach stage.",
-          "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "214395534353"
-        },
-        {
-          "rank": 22,
-          "name": "Shuva Chowdhury",
-          "title": "Strategic Client Director",
-          "company": "FUJIFILM Business Innovation Australia",
-          "email": "shuva.chowdhury.un@fujifilm.com",
-          "phone": "",
-          "country": "",
-          "deals": 0,
-          "tier": "PROSPECT",
-          "score": 75,
-          "why": "Strategic client director at fujifilm business innovation australia. Valid bd lead — initial outreach stage.",
-          "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "214407179110"
-        },
-        {
-          "rank": 23,
-          "name": "Tony Figliola",
-          "title": "Metro Business Director",
-          "company": "FUJIFILM Business Innovation Australia",
-          "email": "tony.figliola.qr@fujifilm.com",
-          "phone": "",
-          "country": "",
-          "deals": 0,
-          "tier": "PROSPECT",
-          "score": 75,
-          "why": "Metro business director at fujifilm business innovation australia. Valid bd lead — initial outreach stage.",
-          "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "214395666025"
-        },
-        {
-          "rank": 24,
           "name": "Anju Isenth",
           "title": "Managing Director",
           "company": "(Individual)",
@@ -4553,413 +4586,450 @@
           "hsId": "211615471123"
         },
         {
-          "rank": 25,
-          "name": "Niel Isdale",
-          "title": "Chief Customer Officer",
-          "company": "Komo Technologies",
-          "email": "niel.isdale@komo.tech",
-          "phone": "+61 400 370 536",
+          "rank": 22,
+          "name": "Eric Turner",
+          "title": "VP of Marketing",
+          "company": "Whistic",
+          "email": "eturner@whistic.com",
+          "phone": "",
           "country": "",
           "deals": 0,
           "tier": "ADVANCE",
           "score": 70,
-          "why": "Chief customer officer at komo technologies. Connected — relationship ready, no deal yet.",
+          "why": "Vp of marketing at whistic. Connected — relationship ready, no deal yet.",
           "action": "Create deal — send capabilities deck and schedule discovery call.",
-          "hsId": "203978931804"
+          "hsId": "205828512129"
+        },
+        {
+          "rank": 23,
+          "name": "Sofiane Benyouci",
+          "title": "Managing Partner",
+          "company": "Innovitech",
+          "email": "sofiane.benyouci@innovitech.com",
+          "phone": "+1 514-991-7634",
+          "country": "",
+          "deals": 0,
+          "tier": "ADVANCE",
+          "score": 70,
+          "why": "Managing partner at innovitech. Connected — relationship ready, no deal yet.",
+          "action": "Create deal — send capabilities deck and schedule discovery call.",
+          "hsId": "205829539241"
+        },
+        {
+          "rank": 24,
+          "name": "AJ Anelli",
+          "title": "Promotions Director",
+          "company": "Big Data Marketing",
+          "email": "aanelli@urban1.com",
+          "phone": "",
+          "country": "",
+          "deals": 0,
+          "tier": "PROSPECT",
+          "score": 67,
+          "why": "Promotions director at big data marketing. Valid bd lead — initial outreach stage.",
+          "action": "Assign validity first, then personalised outreach to explore business needs.",
+          "hsId": "205834817927"
+        },
+        {
+          "rank": 25,
+          "name": "AJ Tooley",
+          "title": "Vice President, Branch Manager, Associate Portfolio Manager, Commodity Futures Broker",
+          "company": "Ventum Financial",
+          "email": "aj.tooley@ventumfinancial.com",
+          "phone": "",
+          "country": "",
+          "deals": 0,
+          "tier": "PROSPECT",
+          "score": 67,
+          "why": "Vice president, branch manager, associate portfolio manager, commodity futures broker at ventum financial. Valid bd lead — initial outreach stage.",
+          "action": "Assign validity first, then personalised outreach to explore business needs.",
+          "hsId": "205834031509"
         },
         {
           "rank": 26,
-          "name": "A M",
-          "title": "Director - Client Relationship Management",
-          "company": "Principal Asset Management",
-          "email": "moubset.atika@principal.com",
+          "name": "Aakar Shroff",
+          "title": "Vice President of Product Management",
+          "company": "Chainlink Labs",
+          "email": "aakar.shroff@smartcontract.com",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Director - client relationship management at principal asset management. Valid bd lead — initial outreach stage.",
+          "why": "Vice president of product management at chainlink labs. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "214396251993"
+          "hsId": "205829387937"
         },
         {
           "rank": 27,
-          "name": "AJ Berres",
-          "title": "Vice President of Financial Planning Analysis",
-          "company": "CSP",
-          "email": "aj.berres@thecsp.com",
+          "name": "Aaran Newman",
+          "title": "Managing Director",
+          "company": "Auto-IT",
+          "email": "aaran.newman@auto-it.com",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Vice president of financial planning analysis at csp. Valid bd lead — initial outreach stage.",
+          "why": "Managing director at auto-it. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "215531005992"
+          "hsId": "205828736536"
         },
         {
           "rank": 28,
-          "name": "AJ Hightower",
-          "title": "Owner/Creative Director",
-          "company": "121 Creative",
-          "email": "aj@121creative.com.au",
+          "name": "Aaron Anderson",
+          "title": "Director of Cannabis Sourcing and Strategic Partnerships",
+          "company": "Mera Cannabis Corp.",
+          "email": "aaron.anderson@meracannabis.com",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Owner/creative director at 121 creative. Valid bd lead — initial outreach stage.",
+          "why": "Director of cannabis sourcing and strategic partnerships at mera cannabis corp.. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "204026448449"
+          "hsId": "220464428591"
         },
         {
           "rank": 29,
-          "name": "AJ Katana",
-          "title": "CEO",
-          "company": "Entertainment AI",
-          "email": "aj@agency.org.uk",
+          "name": "Aaron Bird",
+          "title": "Account Director & Partner",
+          "company": "Apartments.com.au",
+          "email": "aaron@urban.com.au",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Ceo at entertainment ai. Valid bd lead — initial outreach stage.",
+          "why": "Account director & partner at apartments.com.au. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "214312570806"
+          "hsId": "205831283119"
         },
         {
           "rank": 30,
-          "name": "AJ O'Leary",
-          "title": "Program Director",
-          "company": "H+K International",
-          "email": "aj.oleary@hki.com",
+          "name": "Aaron Brockley",
+          "title": "Sales Director",
+          "company": "Birdi",
+          "email": "aaron.brockley@birdi.io",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Program director at h+k international. Valid bd lead — initial outreach stage.",
+          "why": "Sales director at birdi. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "214396207246"
+          "hsId": "205721403756"
         },
         {
           "rank": 31,
-          "name": "Aaron Adams",
-          "title": "Managing Director",
-          "company": "Moss Adams",
-          "email": "aaron.adams@mossadams.com",
+          "name": "Aaron Case",
+          "title": "President, TFS Financial",
+          "company": "TFG Financial",
+          "email": "ajcase@travelersfinancialgroup.com",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Managing director at moss adams. Valid bd lead — initial outreach stage.",
+          "why": "President, tfs financial at tfg financial. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "214397680241"
+          "hsId": "205751672443"
         },
         {
           "rank": 32,
-          "name": "Aaron Bernabi",
-          "title": "President | Project Manager (Remote)",
-          "company": "Logoworks",
-          "email": "aaron@logoworks.com",
+          "name": "Aaron Daley",
+          "title": "Organizational Lead-Finance/CFO",
+          "company": "Compass Early Learning & Care",
+          "email": "aarondaley@compasselc.com",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "President | project manager (remote) at logoworks. Valid bd lead — initial outreach stage.",
+          "why": "Organizational lead-finance/cfo at compass early learning & care. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "214400044862"
+          "hsId": "205828690259"
         },
         {
           "rank": 33,
-          "name": "Aaron Blackfelner",
-          "title": "Senior Vice President - Private Client Advisor",
-          "company": "Bank of America Private Bank",
-          "email": "aaron.blackfelner@bofa.com",
+          "name": "Aaron Dimstas",
+          "title": "Group Account Director",
+          "company": "Dashing",
+          "email": "aaron@dashinggroup.com.au",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Senior vice president - private client advisor at bank of america private bank. Valid bd lead — initial outreach stage.",
+          "why": "Group account director at dashing. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "214398374252"
+          "hsId": "205831873606"
         },
         {
           "rank": 34,
-          "name": "Aaron Byers",
-          "title": "Key Accounts Director",
-          "company": "Elastic",
-          "email": "aaron.byers@elastic.co",
+          "name": "Aaron Dussair",
+          "title": "Executive Vice President",
+          "company": "Pembrooke & Ives",
+          "email": "adussair@pembrookeandives.com",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Key accounts director at elastic. Valid bd lead — initial outreach stage.",
+          "why": "Executive vice president at pembrooke & ives. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "214395923350"
+          "hsId": "205834666327"
         },
         {
           "rank": 35,
-          "name": "Aaron Coon",
-          "title": "Director of Facilities Engineering & Asset Management",
-          "company": "CSP",
-          "email": "aaron.coon@cspplastics.com",
+          "name": "Aaron Eccles",
+          "title": "Senior Director of Marketing",
+          "company": "REW",
+          "email": "aeccles@rew.ca",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Director of facilities engineering & asset management at csp. Valid bd lead — initial outreach stage.",
+          "why": "Senior director of marketing at rew. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "215520541278"
+          "hsId": "205834270263"
         },
         {
           "rank": 36,
-          "name": "Aaron Cooper",
-          "title": "Founder and CEO",
-          "company": "LivePreso",
-          "email": "aaron.cooper@livepreso.com",
+          "name": "Aaron French",
+          "title": "Chief Product & Commercial Officer (previously COO)",
+          "company": "DataMesh Group",
+          "email": "aaron@datameshgroup.com",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Founder and ceo at livepreso. Valid bd lead — initial outreach stage.",
+          "why": "Chief product & commercial officer (previously coo) at datamesh group. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "204098997022"
+          "hsId": "205737094559"
         },
         {
           "rank": 37,
-          "name": "Aaron Crees",
-          "title": "Managing Director",
-          "company": "Jobman",
-          "email": "aaron@jobman.com",
+          "name": "Aaron Grieger",
+          "title": "Director",
+          "company": "BESTEC PTY LTD",
+          "email": "agrieger@bestec.com.au",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Managing director at jobman. Valid bd lead — initial outreach stage.",
+          "why": "Director at bestec pty ltd. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "204099266640"
+          "hsId": "205831016841"
         },
         {
           "rank": 38,
-          "name": "Aaron Cullumbine",
-          "title": "Commercial Director",
-          "company": "DEXL - Direct Express Logistics",
-          "email": "aaron.cullumbine@dexl.co.uk",
+          "name": "Aaron Hilley",
+          "title": "Vice President of Engineering - Field Engineering",
+          "company": "Heartland Business Systems",
+          "email": "ahilley@hbs.net",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Commercial director at dexl - direct express logistics. Valid bd lead — initial outreach stage.",
+          "why": "Vice president of engineering - field engineering at heartland business systems. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "204100259357"
+          "hsId": "205751099017"
         },
         {
           "rank": 39,
-          "name": "Aaron Dauber",
-          "title": "Regional Director of Operations",
-          "company": "CYM Living",
-          "email": "aaron.dauber@cymliving.com",
+          "name": "Aaron Hood",
+          "title": "Fulfilment & Customer Service Director",
+          "company": "Naturecan",
+          "email": "aaron.hood@naturecan.com",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Regional director of operations at cym living. Valid bd lead — initial outreach stage.",
+          "why": "Fulfilment & customer service director at naturecan. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "204094903921"
+          "hsId": "205830994602"
         },
         {
           "rank": 40,
-          "name": "Aaron Dibner-Dunlap",
-          "title": "Associate Director, Research & Development",
-          "company": "Surgo Health",
-          "email": "aarondibnerdunlap@surgohealth.com",
+          "name": "Aaron Horvath",
+          "title": "Senior Vice President, Product & Marketing Strategy",
+          "company": "Mobilize Solutions",
+          "email": "aaron@mobilize.solutions",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Associate director, research & development at surgo health. Valid bd lead — initial outreach stage.",
+          "why": "Senior vice president, product & marketing strategy at mobilize solutions. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "204094313729"
+          "hsId": "212999380073"
         },
         {
           "rank": 41,
-          "name": "Aaron Fletcher",
-          "title": "Director",
-          "company": "Collier Turf Care",
-          "email": "aaronf@collier-turf-care.co.uk",
+          "name": "Aaron Hughes",
+          "title": "Regional Director",
+          "company": "Acumentis Group",
+          "email": "aaron.hughes@acumentis.com.au",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Director at collier turf care. Valid bd lead — initial outreach stage.",
+          "why": "Regional director at acumentis group. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "203976324752"
+          "hsId": "205834442639"
         },
         {
           "rank": 42,
-          "name": "Aaron Graves",
-          "title": "Sale Director",
-          "company": "HOSPLANT SALES LIMITED",
-          "email": "aaron@hosplant.co.uk",
+          "name": "Aaron Hughes",
+          "title": "Managing Director",
+          "company": "GEDA Construction",
+          "email": "ahughes@geda.co.uk",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Sale director at hosplant sales limited. Valid bd lead — initial outreach stage.",
+          "why": "Managing director at geda construction. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "204099889790"
+          "hsId": "205764095032"
         },
         {
           "rank": 43,
-          "name": "Aaron Gray",
-          "title": "Director of Operations",
-          "company": "Ingleford Scaffolding",
-          "email": "aaron.gray@inglefordscaffolding.co.uk",
+          "name": "Aaron Karas",
+          "title": "Founder/ Fiduciary",
+          "company": "Qb1 Advsiors LLC",
+          "email": "aaron@qb1advisors.com",
           "phone": "",
           "country": "",
           "deals": 0,
-          "tier": "PROSPECT",
+          "tier": "QUALIFY",
           "score": 67,
-          "why": "Director of operations at ingleford scaffolding. Valid bd lead — initial outreach stage.",
-          "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "204097577646"
+          "why": "Founder/ fiduciary at qb1 advsiors llc. Valid bd lead — initial outreach stage.",
+          "action": "Schedule discovery call — explore outsourcing needs and qualify role.",
+          "hsId": "209752557962"
         },
         {
           "rank": 44,
-          "name": "Aaron Hall",
-          "title": "Director of Business Development",
-          "company": "Frank eXchange Limited",
-          "email": "aaron.hall@frank-exchange.com",
+          "name": "Aaron Kash",
+          "title": "Logistics Operations Principal Professional, Director of Warehousing and Transportation",
+          "company": "Samsung SDS America",
+          "email": "aaron.kash@samsung.com",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Director of business development at frank exchange limited. Valid bd lead — initial outreach stage.",
+          "why": "Logistics operations principal professional, director of warehousing and transportation at samsung sds america. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "203958491570"
+          "hsId": "205764096312"
         },
         {
           "rank": 45,
-          "name": "Aaron Halvorson",
-          "title": "Quality Director",
-          "company": "IRISNDT",
-          "email": "aaron.halvorson@irisndt.com",
+          "name": "Aaron Kirk",
+          "title": "Director, Contractor Operations",
+          "company": "Remi",
+          "email": "aaron@remihq.com",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Quality director at irisndt. Valid bd lead — initial outreach stage.",
+          "why": "Director, contractor operations at remi. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "214399321224"
+          "hsId": "205794770184"
         },
         {
           "rank": 46,
-          "name": "Aaron Harrison",
-          "title": "Vice President",
-          "company": "Electrical Corporation of America, Inc.",
-          "email": "a.harrison@ecahq.com",
+          "name": "Aaron Matthews",
+          "title": "Co-Founder and Director",
+          "company": "DotCollective",
+          "email": "aaron@dotdev.com.au",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Vice president at electrical corporation of america, inc.. Valid bd lead — initial outreach stage.",
+          "why": "Co-founder and director at dotcollective. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "204094313739"
+          "hsId": "205833565550"
         },
         {
           "rank": 47,
-          "name": "Aaron Haylett",
-          "title": "Finance Director",
-          "company": "Kepler EMEA",
-          "email": "ahaylett@keplergrp.com",
+          "name": "Aaron McClean",
+          "title": "Associate Director - Carbon Reduction",
+          "company": "carbonfit",
+          "email": "aaron@carbonfit.online",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Finance director at kepler emea. Valid bd lead — initial outreach stage.",
+          "why": "Associate director - carbon reduction at carbonfit. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "204098887802"
+          "hsId": "205831270699"
         },
         {
           "rank": 48,
-          "name": "Aaron Head",
-          "title": "Director",
-          "company": "Essex Mechanical Services",
-          "email": "aaron@essexmechanicalservices.co.uk",
+          "name": "Aaron Robinson",
+          "title": "Sr. Director of Brand Management",
+          "company": "Kodiak Cakes",
+          "email": "aaron.robinson@kodiakcakes.com",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Director at essex mechanical services. Valid bd lead — initial outreach stage.",
+          "why": "Sr. director of brand management at kodiak cakes. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "204098900788"
+          "hsId": "205734781326"
         },
         {
           "rank": 49,
-          "name": "Aaron Hernandez",
-          "title": "Vice President of Sales",
-          "company": "Nice Group",
-          "email": "aaron.hernandez@niceforyou.com",
+          "name": "Aaron Steele",
+          "title": "Sr. Director Insights, Category Leadership",
+          "company": "Zevia",
+          "email": "aaron@zevia.com",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Vice president of sales at nice group. Valid bd lead — initial outreach stage.",
+          "why": "Sr. director insights, category leadership at zevia. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "215704674666"
+          "hsId": "205830994746"
         },
         {
           "rank": 50,
-          "name": "Aaron Hill",
-          "title": "Director of Marketplace Supply",
-          "company": "Proof",
-          "email": "aaron@proofserve.com",
+          "name": "Aaron Stubbings",
+          "title": "Chief Strategy Officer & Director",
+          "company": "Ravel",
+          "email": "aaron@ravel.com.au",
           "phone": "",
           "country": "",
           "deals": 0,
           "tier": "PROSPECT",
           "score": 67,
-          "why": "Director of marketplace supply at proof. Valid bd lead — initial outreach stage.",
+          "why": "Chief strategy officer & director at ravel. Valid bd lead — initial outreach stage.",
           "action": "Assign validity first, then personalised outreach to explore business needs.",
-          "hsId": "204099055431"
+          "hsId": "205736946235"
         }
       ],
       "dealProgress": {
-        "total": 2,
-        "dcAttended": 1,
+        "total": 0,
+        "dcAttended": 0,
         "acAttended": 0,
         "paid": 0
       },
       "saSigned": 0,
-      "dcCount": 4,
+      "dcCount": 3,
       "dcDeals": [
-        {
-          "id": "60142155600",
-          "company": "Tonic DNA - 2D Harmony Animator",
-          "dcDate": "2026-05-14",
-          "attendance": "Attended",
-          "leadSource": "Outbound Paid",
-          "stage": "DC Completed"
-        },
         {
           "id": "60234052428",
           "company": "njsportsspine.com - Data Analyst, Customer service rep and Benefit verifications rep",
@@ -4987,8 +5057,8 @@
       ],
       "acCount": 0,
       "acDeals": [],
-      "paidSettled": 0,
       "saDeals": [],
+      "paidSettled": 0,
       "depositDeals": []
     }
   },
@@ -5109,11 +5179,11 @@
       "year": 2026,
       "month": 5,
       "partial": true,
-      "contacts": 260,
+      "contacts": 290,
       "valid": 26,
       "connected": 7,
-      "validRate": 10.0,
-      "connectRate": 2.7,
+      "validRate": 9.0,
+      "connectRate": 2.4,
       "dealProgress": {
         "total": 7,
         "dcAttended": 5,
@@ -5125,7 +5195,787 @@
       "acCount": 1,
       "paidCount": 0
     }
-  ]
+  ],
+  "longView": {
+    "periodStart": "2025-01-01",
+    "periodEnd": "2026-05-22",
+    "stats": {
+      "count": 69,
+      "avg": 26.3,
+      "median": 15.0,
+      "min": 0,
+      "max": 327
+    },
+    "buckets": {
+      "0–7": 22,
+      "8–14": 9,
+      "15–30": 25,
+      "31–60": 8,
+      "61–90": 3,
+      "90+": 2
+    },
+    "deals": [
+      {
+        "dealId": "56279873975",
+        "company": "C3 Ingenuity - 1 Automation Role",
+        "contactCreated": "2025-02-18",
+        "dcDate": "2026-02-21",
+        "paidDate": "2026-03-20",
+        "days": 27,
+        "leadSource": "Intro Offer 2026",
+        "amount": "600",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "55815121924",
+        "company": "TSG - Sr. Accountant",
+        "contactCreated": "2026-02-04",
+        "dcDate": "2026-02-10",
+        "paidDate": "2026-02-28",
+        "days": 18,
+        "leadSource": "",
+        "amount": "600",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "55636973160",
+        "company": "EARLY PR - Admin Asisstant and PR Account Manager",
+        "contactCreated": "2025-06-17",
+        "dcDate": "2026-02-06",
+        "paidDate": "2026-02-07",
+        "days": 1,
+        "leadSource": "Calculator",
+        "amount": "600",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "54347203933",
+        "company": "Book Outlet International AB- CSR",
+        "contactCreated": "2026-01-18",
+        "dcDate": "2026-01-22",
+        "paidDate": "2026-01-30",
+        "days": 8,
+        "leadSource": "",
+        "amount": "600",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "51244763755",
+        "company": "LMTD - Creative Roles 3 HCs",
+        "contactCreated": "2025-11-27",
+        "dcDate": "2025-12-04",
+        "paidDate": "2026-01-29",
+        "days": 56,
+        "leadSource": "OA Derek",
+        "amount": "600",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "53696597426",
+        "company": "Yeezy - Multiple Roles",
+        "contactCreated": "2026-01-12",
+        "dcDate": "2026-01-10",
+        "paidDate": "2026-01-15",
+        "days": 5,
+        "leadSource": "",
+        "amount": "600",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "51831982161",
+        "company": "IR Chiropractic - 2 VA",
+        "contactCreated": "2025-12-15",
+        "dcDate": "2025-12-15",
+        "paidDate": "2026-01-09",
+        "days": 25,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "51268777592",
+        "company": "Webarc - 2 FT Sales Representative",
+        "contactCreated": "2025-12-05",
+        "dcDate": "2025-12-09",
+        "paidDate": "2025-12-24",
+        "days": 15,
+        "leadSource": "Others",
+        "amount": "700",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "51926074899",
+        "company": "The Botanist Dubai - PT VA/Admin",
+        "contactCreated": "2025-12-15",
+        "dcDate": "2025-12-16",
+        "paidDate": "2025-12-17",
+        "days": 1,
+        "leadSource": "OA Derek",
+        "amount": "350",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "50435903097",
+        "company": "Bitely - Marketing",
+        "contactCreated": "2025-11-26",
+        "dcDate": "2025-11-27",
+        "paidDate": "2025-12-04",
+        "days": 7,
+        "leadSource": "Others",
+        "amount": "350",
+        "stage": "Closed Lost"
+      },
+      {
+        "dealId": "49448070709",
+        "company": "Soleire - Electrical CAD Designer (Part-time)",
+        "contactCreated": "2025-11-16",
+        "dcDate": "2025-11-19",
+        "paidDate": "2025-12-02",
+        "days": 13,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "48988072566",
+        "company": "Global Trading Transportation Inc. - HR Assistant",
+        "contactCreated": "2025-11-13",
+        "dcDate": "2025-11-18",
+        "paidDate": "2025-11-25",
+        "days": 7,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "49695442505",
+        "company": "Snow Maids - Dispatcher and customer service rep",
+        "contactCreated": "2025-11-19",
+        "dcDate": "2025-11-21",
+        "paidDate": "2025-11-25",
+        "days": 4,
+        "leadSource": "Marked As Spam",
+        "amount": "350",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "49531027732",
+        "company": "taxrelax.co.uk - Bookkeeper",
+        "contactCreated": "2025-11-17",
+        "dcDate": "2025-11-19",
+        "paidDate": "2025-11-19",
+        "days": 0,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "48988196968",
+        "company": "PC Server & Parts - Non-CPA Accountant",
+        "contactCreated": "2025-11-13",
+        "dcDate": "2025-11-17",
+        "paidDate": "2025-11-18",
+        "days": 1,
+        "leadSource": "Direct Email",
+        "amount": "600",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "49134035570",
+        "company": "Renvio - FT BDR, FT Marketing Director",
+        "contactCreated": "2025-11-17",
+        "dcDate": "2025-11-18",
+        "paidDate": "2025-11-18",
+        "days": 0,
+        "leadSource": "Direct Email",
+        "amount": "1200",
+        "stage": "Closed Lost"
+      },
+      {
+        "dealId": "48628423842",
+        "company": "Aspire Tennis Academy - PT VA",
+        "contactCreated": "2025-11-08",
+        "dcDate": "2025-11-11",
+        "paidDate": "2025-11-16",
+        "days": 5,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "35056754695",
+        "company": "TM Innovated Solutions - Appointment Setter",
+        "contactCreated": "2025-03-25",
+        "dcDate": "2025-04-03",
+        "paidDate": "2025-11-13",
+        "days": 224,
+        "leadSource": "BPO Landing Page",
+        "amount": "600",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "46709599554",
+        "company": "Najla Law Firm - Legal Assistant",
+        "contactCreated": "2025-10-22",
+        "dcDate": "2025-10-24",
+        "paidDate": "2025-11-13",
+        "days": 20,
+        "leadSource": "Calculator",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "48978124947",
+        "company": "P&D Painting CT Inc - Marketing and Sales Agents",
+        "contactCreated": "2025-11-13",
+        "dcDate": "2025-11-13",
+        "paidDate": "2025-11-13",
+        "days": 0,
+        "leadSource": "",
+        "amount": "1800",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "48878204815",
+        "company": "Defined Marketing - Marketing and Operations Assistant",
+        "contactCreated": "2025-11-10",
+        "dcDate": "2025-11-12",
+        "paidDate": "2025-11-12",
+        "days": 0,
+        "leadSource": "",
+        "amount": "600",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "47660402611",
+        "company": "Arcus Apparel Group - Technical Graphic Designer",
+        "contactCreated": "2025-10-29",
+        "dcDate": "2025-10-31",
+        "paidDate": "2025-11-08",
+        "days": 8,
+        "leadSource": "Calculator",
+        "amount": "600",
+        "stage": "Closed Lost"
+      },
+      {
+        "dealId": "48123146833",
+        "company": "Aphinity Labs - AI Automation Engineer",
+        "contactCreated": "2025-10-28",
+        "dcDate": "2025-11-04",
+        "paidDate": "2025-11-07",
+        "days": 3,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Closed Lost"
+      },
+      {
+        "dealId": "48476535338",
+        "company": "Fit 20 Bahrain - Digital Marketer",
+        "contactCreated": "2025-11-05",
+        "dcDate": "2025-11-07",
+        "paidDate": "2025-11-07",
+        "days": 0,
+        "leadSource": "Others",
+        "amount": "350",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "46291938214",
+        "company": "Beany - Copywriter, HubSpot Specialist",
+        "contactCreated": "2025-10-15",
+        "dcDate": "2025-10-21",
+        "paidDate": "2025-10-29",
+        "days": 8,
+        "leadSource": "Others",
+        "amount": "700",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "44855627041",
+        "company": "Less Tax for Dentists - Dental Tax Strategist - DMS",
+        "contactCreated": "2025-09-17",
+        "dcDate": "2025-09-30",
+        "paidDate": "2025-10-13",
+        "days": 13,
+        "leadSource": "LinkedIn",
+        "amount": "600",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "43896830553",
+        "company": "Gulf Coast Infrared - Business Development and Marketing Specialist",
+        "contactCreated": "2025-09-18",
+        "dcDate": "2025-09-19",
+        "paidDate": "2025-10-08",
+        "days": 19,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "44674813227",
+        "company": "M44 - Media Buyer",
+        "contactCreated": "2025-09-21",
+        "dcDate": "2025-09-29",
+        "paidDate": "2025-10-07",
+        "days": 8,
+        "leadSource": "Popup - Blacklist Countries",
+        "amount": "600",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "43005815895",
+        "company": "Mr Mixologist - PT Tax Agent / Bookkeeper",
+        "contactCreated": "2025-08-27",
+        "dcDate": "2025-09-01",
+        "paidDate": "2025-09-26",
+        "days": 25,
+        "leadSource": "Others",
+        "amount": "350",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "43514193536",
+        "company": "Clarity Squared Behavioral - Insurance Verification Specialist",
+        "contactCreated": "2025-07-31",
+        "dcDate": "2025-08-07",
+        "paidDate": "2025-09-23",
+        "days": 47,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "43827244633",
+        "company": "Community Law Resource Center - Legal Assistant",
+        "contactCreated": "2025-09-16",
+        "dcDate": "2025-09-18",
+        "paidDate": "2025-09-18",
+        "days": 0,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Closed Lost"
+      },
+      {
+        "dealId": "43595429715",
+        "company": "Nick Vale - PT Social Media Marketing Specialist",
+        "contactCreated": "2025-09-10",
+        "dcDate": "2025-09-17",
+        "paidDate": "2025-09-17",
+        "days": 0,
+        "leadSource": "Others",
+        "amount": "350",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "43331369812",
+        "company": "Purpose Home Healthcare - Virtual Assistant",
+        "contactCreated": "2025-09-03",
+        "dcDate": "2025-09-05",
+        "paidDate": "2025-09-12",
+        "days": 7,
+        "leadSource": "Marked As Spam",
+        "amount": "600",
+        "stage": "Closed Lost"
+      },
+      {
+        "dealId": "42868568967",
+        "company": "Whale Swim - HR Executive",
+        "contactCreated": "2025-08-22",
+        "dcDate": "2025-08-28",
+        "paidDate": "2025-09-04",
+        "days": 7,
+        "leadSource": "Others",
+        "amount": "350",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "41604979113",
+        "company": "Quantum Aviation Solutions - Developer",
+        "contactCreated": "2025-08-08",
+        "dcDate": "2025-08-11",
+        "paidDate": "2025-09-02",
+        "days": 22,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "41603851094",
+        "company": "Positive Identity, LLC - (1 - 2) Appointment Setter(s)",
+        "contactCreated": "2025-08-08",
+        "dcDate": "2025-08-11",
+        "paidDate": "2025-08-26",
+        "days": 15,
+        "leadSource": "",
+        "amount": "700",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "41506034222",
+        "company": "Beacon Wealth Advisory - PA / VA / EA",
+        "contactCreated": "2025-06-10",
+        "dcDate": "2025-07-31",
+        "paidDate": "2025-08-22",
+        "days": 22,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "40250820899",
+        "company": "Oliver - Digital Marketing Assistant and HS Admin",
+        "contactCreated": "2025-07-11",
+        "dcDate": "2025-07-16",
+        "paidDate": "2025-08-07",
+        "days": 22,
+        "leadSource": "Calculator",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "40576562057",
+        "company": "Dentistry Explains - Graphic Designer",
+        "contactCreated": "2025-07-21",
+        "dcDate": "2025-07-23",
+        "paidDate": "2025-08-07",
+        "days": 15,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "35032563037",
+        "company": "Clever House - Digital Advertising Specialist",
+        "contactCreated": "2025-03-21",
+        "dcDate": "2025-05-05",
+        "paidDate": "2025-07-31",
+        "days": 87,
+        "leadSource": "OA Derek",
+        "amount": "600",
+        "stage": "Closed Lost"
+      },
+      {
+        "dealId": "38114201458",
+        "company": "Optima Energy - 1-Full Time Data Analyst",
+        "contactCreated": "2025-05-23",
+        "dcDate": "2025-05-28",
+        "paidDate": "2025-07-31",
+        "days": 64,
+        "leadSource": "Popup - Blacklist Countries",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "38967443840",
+        "company": "Ovie - Operations Manager / Virtual Assistant + Digital Marketer",
+        "contactCreated": "2025-06-11",
+        "dcDate": "2025-06-17",
+        "paidDate": "2025-07-31",
+        "days": 44,
+        "leadSource": "OA Derek",
+        "amount": "700",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "21671842321",
+        "company": "The Noble Law - SEO Marketing Specialist (Part Time)",
+        "contactCreated": "2025-01-20",
+        "dcDate": "2024-09-06",
+        "paidDate": "2025-07-30",
+        "days": 327,
+        "leadSource": "",
+        "amount": "350",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "39282489469",
+        "company": "Thatcher Technology Group - AI Developer",
+        "contactCreated": "2025-05-12",
+        "dcDate": "2025-06-30",
+        "paidDate": "2025-07-22",
+        "days": 22,
+        "leadSource": "",
+        "amount": "1800",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "36988968334",
+        "company": "Appliance Servicing Company - Part-Time VA",
+        "contactCreated": "2025-05-08",
+        "dcDate": "2025-05-16",
+        "paidDate": "2025-07-19",
+        "days": 64,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "39065537885",
+        "company": "Isabelle Le - Digital Marketing Specialist",
+        "contactCreated": "2025-06-16",
+        "dcDate": "2025-06-19",
+        "paidDate": "2025-07-15",
+        "days": 26,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Closed Lost"
+      },
+      {
+        "dealId": "38278809201",
+        "company": "Billabong Retreat Sydney - Digital Marketing",
+        "contactCreated": "2025-05-28",
+        "dcDate": "2025-06-04",
+        "paidDate": "2025-07-11",
+        "days": 37,
+        "leadSource": "Popup - Blacklist Countries",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "38738639659",
+        "company": "The Inflam Blueprint - PT Operations Manager, WFH",
+        "contactCreated": "2025-06-10",
+        "dcDate": "2025-06-23",
+        "paidDate": "2025-07-10",
+        "days": 17,
+        "leadSource": "OA Derek",
+        "amount": "350",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "39062092865",
+        "company": "Purple Moon Designs",
+        "contactCreated": "2025-06-10",
+        "dcDate": "2025-06-19",
+        "paidDate": "2025-07-04",
+        "days": 15,
+        "leadSource": "",
+        "amount": "350",
+        "stage": "Hiring & Recruiting"
+      },
+      {
+        "dealId": "38119105376",
+        "company": "gateway.work - Sales Development & Lead Generation Specialist",
+        "contactCreated": "2025-05-13",
+        "dcDate": "2025-05-29",
+        "paidDate": "2025-06-27",
+        "days": 29,
+        "leadSource": "Popup - Blacklist Countries",
+        "amount": "350",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "36893060439",
+        "company": "Essential Endodontics - Multiple Roles",
+        "contactCreated": "2025-05-07",
+        "dcDate": "2025-05-13",
+        "paidDate": "2025-06-21",
+        "days": 39,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "36723887279",
+        "company": "Linear Lighting Miami -  Drafter & Auto Cad Specialist",
+        "contactCreated": "2025-04-25",
+        "dcDate": "2025-05-10",
+        "paidDate": "2025-06-07",
+        "days": 28,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "36313439876",
+        "company": "Dr Chris Yelton DDS - Multiple VA roles",
+        "contactCreated": "2025-04-11",
+        "dcDate": "2025-04-25",
+        "paidDate": "2025-05-23",
+        "days": 28,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "36037448473",
+        "company": "BrosComm LLC - Outbound Sales",
+        "contactCreated": "2025-04-18",
+        "dcDate": "2025-04-26",
+        "paidDate": "2025-05-17",
+        "days": 21,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "35534399558",
+        "company": "Evan Sanders - Lead Generation/Cold Caller",
+        "contactCreated": "2025-04-04",
+        "dcDate": "2025-04-15",
+        "paidDate": "2025-05-13",
+        "days": 28,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "35830595207",
+        "company": "Geoff Nixon Real Estate - Admin Assistant",
+        "contactCreated": "2025-04-16",
+        "dcDate": "2025-04-23",
+        "paidDate": "2025-05-09",
+        "days": 16,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "34737714349",
+        "company": "Routica - Business Development Rep (sales)",
+        "contactCreated": "2025-03-16",
+        "dcDate": "2025-03-21",
+        "paidDate": "2025-05-05",
+        "days": 45,
+        "leadSource": "BPO Landing Page",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "35447324577",
+        "company": "Avari Events - VA",
+        "contactCreated": "2025-04-02",
+        "dcDate": "2025-04-04",
+        "paidDate": "2025-05-01",
+        "days": 27,
+        "leadSource": "Calculator",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "34918832938",
+        "company": "Soulpreneur Institute - Digital Marketing Assistant",
+        "contactCreated": "2025-03-21",
+        "dcDate": "2025-03-26",
+        "paidDate": "2025-04-08",
+        "days": 13,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "33278973367",
+        "company": "Alex Field - B2C Real Estate Cold Caller",
+        "contactCreated": "2025-02-10",
+        "dcDate": "2025-02-14",
+        "paidDate": "2025-04-05",
+        "days": 50,
+        "leadSource": "Others",
+        "amount": "600",
+        "stage": "Closed Lost"
+      },
+      {
+        "dealId": "33918966302",
+        "company": "Pace Your Self Empowerment Systems - Appointment Setter Part time",
+        "contactCreated": "2025-02-21",
+        "dcDate": "2025-02-25",
+        "paidDate": "2025-03-14",
+        "days": 17,
+        "leadSource": "Others",
+        "amount": "350",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "34210047386",
+        "company": "ttstax.com - Bookkeeper",
+        "contactCreated": "2025-02-05",
+        "dcDate": "2025-02-25",
+        "paidDate": "2025-03-08",
+        "days": 11,
+        "leadSource": "Calculator",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "32387656479",
+        "company": "Shoemakers of LA - Graphic Designer",
+        "contactCreated": "2025-01-23",
+        "dcDate": "2025-01-28",
+        "paidDate": "2025-02-01",
+        "days": 4,
+        "leadSource": "Facebook",
+        "amount": "600",
+        "stage": "Closed Lost"
+      },
+      {
+        "dealId": "32253757441",
+        "company": "Potentum Partners - Bookkeeper (FT)",
+        "contactCreated": "2025-01-15",
+        "dcDate": "2025-01-20",
+        "paidDate": "2025-01-29",
+        "days": 9,
+        "leadSource": "OA Derek",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "31653118866",
+        "company": "The Events Team - Web Designer and Graphics Designer",
+        "contactCreated": "2025-01-02",
+        "dcDate": "2025-01-15",
+        "paidDate": "2025-01-21",
+        "days": 6,
+        "leadSource": "",
+        "amount": "700",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "31931581199",
+        "company": "DigiCare - HR Generalist",
+        "contactCreated": "2025-01-04",
+        "dcDate": "2025-01-15",
+        "paidDate": "2025-01-21",
+        "days": 6,
+        "leadSource": "",
+        "amount": "350",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "31738512236",
+        "company": "Direct Floor Source - Bookkeeper role",
+        "contactCreated": "2025-01-07",
+        "dcDate": "2025-01-10",
+        "paidDate": "2025-01-13",
+        "days": 3,
+        "leadSource": "Facebook",
+        "amount": "600",
+        "stage": "Closed Won"
+      },
+      {
+        "dealId": "30748672555",
+        "company": "Trendex - ERP Support Role (2 FTE) + Part-Time Digital Marketer",
+        "contactCreated": "2025-05-16",
+        "dcDate": "2024-12-19",
+        "paidDate": "2025-01-06",
+        "days": 18,
+        "leadSource": "",
+        "amount": "1200",
+        "stage": "CD Completed"
+      },
+      {
+        "dealId": "23005633951",
+        "company": "Zepp Health - CSR 2 HC",
+        "contactCreated": "2026-05-07",
+        "dcDate": "2024-10-08",
+        "paidDate": "2024-11-11",
+        "days": 34,
+        "leadSource": "Calculator",
+        "amount": "1200",
+        "stage": "CD Completed"
+      }
+    ]
+  }
 }
 </script>
 
@@ -6059,12 +6909,75 @@ function renderDealsMonthly() {
   });
 }
 
+/* ── LONG VIEW ── */
+function renderLongView() {
+  var lv = REPORT.longView;
+  if (!lv) {
+    setHTML('lv-deals-body', '<tr><td colspan="9" style="color:var(--muted)">No long view data available yet.</td></tr>');
+    return;
+  }
+  setEl('lv-period-start', lv.periodStart || '2025-01-01');
+  setEl('lv-period-end',   lv.periodEnd   || '—');
+
+  var s = lv.stats || {};
+  setEl('lv-count',  s.count  != null ? s.count  : '—');
+  setEl('lv-avg',    s.count  ? s.avg    + 'd' : '—');
+  setEl('lv-median', s.count  ? s.median + 'd' : '—');
+  setEl('lv-min',    s.count  ? s.min    + 'd' : '—');
+  setEl('lv-max',    s.count  ? s.max    + 'd' : '—');
+
+  var b = lv.buckets || {};
+  var labels = ['0–7', '8–14', '15–30', '31–60', '61–90', '90+'];
+  var data   = labels.map(function(k){ return b[k] || 0; });
+  var ctx = document.getElementById('lvDistChart');
+  if (ctx && typeof Chart !== 'undefined') {
+    if (window._lvChart) window._lvChart.destroy();
+    window._lvChart = new Chart(ctx, {
+      type: 'bar',
+      data: { labels: labels, datasets: [{
+        label: 'Deals', data: data,
+        backgroundColor: ['#22c55e','#06b6d4','#4f6ef7','#f59e0b','#f97316','#ef4444'],
+        borderWidth: 0
+      }]},
+      options: {
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+        responsive: true, maintainAspectRatio: false
+      }
+    });
+  }
+
+  var deals = lv.deals || [];
+  if (!deals.length) {
+    setHTML('lv-deals-body', '<tr><td colspan="9" style="color:var(--muted)">No converted deals in this period.</td></tr>');
+    return;
+  }
+  var html = '';
+  deals.forEach(function(d, i) {
+    var amt = d.amount ? '$' + Number(d.amount).toLocaleString() : '—';
+    var daysColor = d.days <= 14 ? 'var(--green)' : (d.days <= 30 ? 'var(--cyan)' : (d.days <= 60 ? 'var(--yellow)' : 'var(--red)'));
+    html += '<tr>';
+    html += '<td style="color:var(--muted)">' + (i + 1) + '</td>';
+    html += '<td><strong>' + (d.company || '—') + '</strong></td>';
+    html += '<td style="color:var(--muted);font-size:12px">' + (d.leadSource || '—') + '</td>';
+    html += '<td style="color:var(--muted)">' + (d.contactCreated || '—') + '</td>';
+    html += '<td>' + (d.dcDate || '—') + '</td>';
+    html += '<td>' + (d.paidDate || '—') + '</td>';
+    html += '<td style="color:' + daysColor + ';font-weight:700">' + d.days + 'd</td>';
+    html += '<td style="color:var(--yellow);font-weight:600">' + amt + '</td>';
+    html += '<td style="color:var(--muted);font-size:12px">' + (d.stage || '—') + '</td>';
+    html += '</tr>';
+  });
+  setHTML('lv-deals-body', html);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   buildCharts();
   renderWeek(currentWeek);
   renderPaidDeals();
   renderMonthly();
   renderDealsMonthly();
+  renderLongView();
 });
 </script>
 
