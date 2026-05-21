@@ -997,14 +997,20 @@ def update_html(week_num, week_data, paid_deals_data, monthly_data, today, long_
     #    Find the week-tabs div and regenerate its contents
     def make_tabs(weeks_dict):
         sorted_keys = sorted(weeks_dict.keys(), key=int)
+        months_short = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
         tabs = []
         for k in sorted_keys:
             w = weeks_dict[k]
             active = " active" if int(k) == week_num else ""
+            try:
+                end_dt   = datetime.fromisoformat(w["endDate"])
+                my_label = f'{months_short[end_dt.month - 1]} {end_dt.year}'
+            except Exception:
+                my_label = str(w.get("year", ""))
             tabs.append(
                 f'<button class="week-tab{active}" data-week="{k}" '
                 f'onclick="selectWeek({k}, this)">'
-                f'{w["label"]} {w["dates"]}</button>'
+                f'{my_label} &middot; {w["label"]}</button>'
             )
         return "\n        ".join(tabs)
 
