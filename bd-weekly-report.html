@@ -36,19 +36,19 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     :root {
-      --bg:       #fafaf7;
-      --surface:  #ffffff;
-      --surface2: #f2f2ee;
-      --border:   #e5e5e5;
+      --bg:       #0f1117;
+      --surface:  #1a1d27;
+      --surface2: #232738;
+      --border:   #2e3248;
       --accent:   #e50695;   /* OA magenta */
       --accent2:  #1e1ea0;   /* OA deep blue */
-      --green:    #16a34a;
-      --yellow:   #ca8a04;
-      --red:      #dc2626;
-      --cyan:     #0891b2;
-      --orange:   #ea580c;
-      --text:     #0a0a0a;
-      --muted:    #6b6b6b;
+      --green:    #22c55e;
+      --yellow:   #f59e0b;
+      --red:      #ef4444;
+      --cyan:     #06b6d4;
+      --orange:   #f97316;
+      --text:     #e2e8f0;
+      --muted:    #8892a4;
       --radius:   12px;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -95,7 +95,7 @@
 
     /* HEADER */
     .header {
-      background: linear-gradient(135deg, #fafaf7 0%, #f2f2ee 100%);
+      background: linear-gradient(135deg, #1a1d27 0%, #1e213a 100%);
       border-bottom: 1px solid var(--border);
       padding: 0 32px;
       display: flex; align-items: center; justify-content: space-between;
@@ -243,7 +243,7 @@
       padding: 10px 20px; text-align: left; background: var(--surface2);
     }
     td { padding: 13px 20px; font-size: 13.5px; border-top: 1px solid var(--border); }
-    tr:hover td { background: rgba(0,0,0,.03); }
+    tr:hover td { background: rgba(255,255,255,.02); }
 
     /* BADGES */
     .badge { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
@@ -8639,7 +8639,7 @@ function renderTop10(wk) {
 
 /* ── CHART BUILDERS ── */
 var FONT = { family: "'Segoe UI', system-ui, sans-serif", size: 12 };
-var GRID = 'rgba(0,0,0,0.08)';
+var GRID = 'rgba(255,255,255,0.06)';
 
 function buildCharts() {
   /* Resolve last two weeks dynamically */
@@ -8661,10 +8661,10 @@ function buildCharts() {
     },
     options: {
       responsive: true, maintainAspectRatio: true,
-      plugins: { legend: { labels: { color: '#6b6b6b', font: FONT, boxWidth: 12 } } },
+      plugins: { legend: { labels: { color: '#8892a4', font: FONT, boxWidth: 12 } } },
       scales: {
-        x: { grid: { color: GRID }, ticks: { color: '#6b6b6b', font: FONT } },
-        y: { grid: { color: GRID }, ticks: { color: '#6b6b6b', font: FONT } }
+        x: { grid: { color: GRID }, ticks: { color: '#8892a4', font: FONT } },
+        y: { grid: { color: GRID }, ticks: { color: '#8892a4', font: FONT } }
       }
     }
   });
@@ -8681,7 +8681,7 @@ function buildCharts() {
     },
     options: {
       responsive: true, maintainAspectRatio: true, cutout: '65%',
-      plugins: { legend: { position: 'bottom', labels: { color: '#6b6b6b', font: FONT, boxWidth: 10, padding: 8 } } }
+      plugins: { legend: { position: 'bottom', labels: { color: '#8892a4', font: FONT, boxWidth: 10, padding: 8 } } }
     }
   });
 
@@ -8697,10 +8697,10 @@ function buildCharts() {
     },
     options: {
       responsive: true, maintainAspectRatio: true,
-      plugins: { legend: { labels: { color: '#6b6b6b', font: FONT, boxWidth: 12 } } },
+      plugins: { legend: { labels: { color: '#8892a4', font: FONT, boxWidth: 12 } } },
       scales: {
-        x: { grid: { display: false }, ticks: { color: '#6b6b6b', font: FONT } },
-        y: { grid: { color: GRID },    ticks: { color: '#6b6b6b', font: FONT } }
+        x: { grid: { display: false }, ticks: { color: '#8892a4', font: FONT } },
+        y: { grid: { color: GRID },    ticks: { color: '#8892a4', font: FONT } }
       }
     }
   });
@@ -8717,8 +8717,8 @@ function buildCharts() {
       responsive: true, maintainAspectRatio: true,
       plugins: { legend: { display: false } },
       scales: {
-        x: { grid: { display: false }, ticks: { color: '#6b6b6b', font: FONT } },
-        y: { grid: { color: GRID },    ticks: { color: '#6b6b6b', font: FONT } }
+        x: { grid: { display: false }, ticks: { color: '#8892a4', font: FONT } },
+        y: { grid: { color: GRID },    ticks: { color: '#8892a4', font: FONT } }
       }
     }
   });
@@ -8735,10 +8735,10 @@ function buildCharts() {
     },
     options: {
       responsive: true, maintainAspectRatio: true,
-      plugins: { legend: { labels: { color: '#6b6b6b', font: FONT, boxWidth: 12 } } },
+      plugins: { legend: { labels: { color: '#8892a4', font: FONT, boxWidth: 12 } } },
       scales: {
-        x: { grid: { display: false }, ticks: { color: '#6b6b6b', font: FONT } },
-        y: { grid: { color: GRID },    ticks: { color: '#6b6b6b', font: FONT }, max: 20 }
+        x: { grid: { display: false }, ticks: { color: '#8892a4', font: FONT } },
+        y: { grid: { color: GRID },    ticks: { color: '#8892a4', font: FONT }, max: 20 }
       }
     }
   });
@@ -8754,7 +8754,7 @@ function buildCharts() {
     },
     options: {
       responsive: true, maintainAspectRatio: true, cutout: '60%',
-      plugins: { legend: { position: 'bottom', labels: { color: '#6b6b6b', font: FONT, boxWidth: 10, padding: 6 } } }
+      plugins: { legend: { position: 'bottom', labels: { color: '#8892a4', font: FONT, boxWidth: 10, padding: 6 } } }
     }
   });
 }
@@ -8971,11 +8971,11 @@ function renderMonthly() {
     },
     options: {
       responsive: true, maintainAspectRatio: true,
-      plugins: { legend: { labels: { color: '#525252', font: FONT } } },
+      plugins: { legend: { labels: { color: '#94a3b8', font: FONT } } },
       scales: {
-        x: { ticks: { color: '#525252', font: FONT }, grid: { color: GRID } },
-        y: { position: 'left', ticks: { color: '#525252', font: FONT }, grid: { color: GRID },
-             title: { display: true, text: 'Contacts', color: '#525252', font: FONT } },
+        x: { ticks: { color: '#94a3b8', font: FONT }, grid: { color: GRID } },
+        y: { position: 'left', ticks: { color: '#94a3b8', font: FONT }, grid: { color: GRID },
+             title: { display: true, text: 'Contacts', color: '#94a3b8', font: FONT } },
         y2: { position: 'right', min: 0, max: 100,
               ticks: { color: '#22c55e', font: FONT, callback: function(v){ return v + '%'; } },
               grid: { drawOnChartArea: false },
@@ -9051,11 +9051,11 @@ function renderDealsMonthly() {
     },
     options: {
       responsive: true, maintainAspectRatio: true,
-      plugins: { legend: { labels: { color: '#525252', font: FONT } } },
+      plugins: { legend: { labels: { color: '#94a3b8', font: FONT } } },
       scales: {
-        x:  { ticks: { color: '#525252', font: FONT }, grid: { color: GRID } },
-        y:  { position: 'left',  ticks: { color: '#525252', font: FONT }, grid: { color: GRID },
-              title: { display: true, text: 'Deals', color: '#525252', font: FONT } },
+        x:  { ticks: { color: '#94a3b8', font: FONT }, grid: { color: GRID } },
+        y:  { position: 'left',  ticks: { color: '#94a3b8', font: FONT }, grid: { color: GRID },
+              title: { display: true, text: 'Deals', color: '#94a3b8', font: FONT } },
         y2: { position: 'right', min: 0, max: 100,
               ticks: { color: '#06b6d4', font: FONT, callback: function(v){ return v + '%'; } },
               grid: { drawOnChartArea: false },
