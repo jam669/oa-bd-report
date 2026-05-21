@@ -267,6 +267,50 @@ def get_deals_by_ids(deal_ids):
             result[str(d["id"])] = d.get("properties", {})
     return result
 
+def fetch_monthly_deal_details(contact_ids):
+    """Return BD pipeline deal details for the given OA BD contact IDs (for the monthly accordion).
+    Each row: {id, company, leadSource, dcDate, acDate, paidDate, signedDate, stage, amount, createDate}."""
+    if not contact_ids:
+        return []
+    assoc_map    = get_contact_deal_info(contact_ids)
+    all_deal_ids = list({did for ids in assoc_map.values() for did in ids})
+    if not all_deal_ids:
+        return []
+
+    props = ["pipeline", "dealname", "dealstage", "lead_source", "amount",
+             "discovery_call_date", "alignment_call_date", "paid_recruitment_date",
+             "pandadoc_signed", "createdate"]
+    result_props = {}
+    for i in range(0, len(all_deal_ids), 100):
+        inputs = [{"id": did} for did in all_deal_ids[i:i+100]]
+        r = requests.post(
+            f"{BASE_URL}/crm/v3/objects/deals/batch/read",
+            headers=HEADERS, json={"properties": props, "inputs": inputs}
+        )
+        if r.status_code not in (200, 207):
+            continue
+        for d in r.json().get("results", []):
+            result_props[str(d["id"])] = d.get("properties", {})
+
+    rows = []
+    for did, p in result_props.items():
+        if p.get("pipeline") != BD_PIPELINE_ID:
+            continue
+        rows.append({
+            "id":          did,
+            "company":     p.get("dealname", "Unknown"),
+            "leadSource":  p.get("lead_source", "") or "",
+            "dcDate":      (p.get("discovery_call_date")   or "")[:10],
+            "acDate":      (p.get("alignment_call_date")    or "")[:10],
+            "paidDate":    (p.get("paid_recruitment_date")  or "")[:10],
+            "signedDate":  (p.get("pandadoc_signed")        or "")[:10],
+            "stage":       STAGE_LABELS.get(p.get("dealstage", ""), p.get("dealstage", "")),
+            "amount":      p.get("amount", "") or "",
+            "createDate":  (p.get("createdate") or "")[:10],
+        })
+    rows.sort(key=lambda r: r["createDate"], reverse=True)
+    return rows
+
 def fetch_deals_progress(contact_ids):
     """Count BD pipeline deal stages for the given OA BD contact IDs.
     Counts are based on each deal's current stage today."""
@@ -673,6 +717,7 @@ def fetch_monthly_contacts(num_months=6):
 
         contact_ids  = [c["id"] for c in contacts]
         deals_prog   = fetch_deals_progress(contact_ids)
+        deal_details = fetch_monthly_deal_details(contact_ids)
         sa_signed    = fetch_sa_signed_count(month_start, month_end)
         dc_count     = _fetch_deal_date_count("discovery_call_date",    month_start, month_end)
         ac_count     = _fetch_deal_date_count("alignment_call_date",     month_start, month_end)
@@ -691,6 +736,7 @@ def fetch_monthly_contacts(num_months=6):
             "validRate":   round(valid_c / total * 100, 1) if total else 0.0,
             "connectRate": round(connected / total * 100, 1) if total else 0.0,
             "dealProgress": deals_prog,
+            "dealDetails":  deal_details,
             "saSigned":    sa_signed,
             "dcCount":     dc_count,
             "acCount":     ac_count,
