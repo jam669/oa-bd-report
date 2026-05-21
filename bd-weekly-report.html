@@ -1247,32 +1247,32 @@
     <!-- ===== PAGE: DEALS PROGRESS ===== -->
     <div class="page" id="page-deals">
       <div class="section-title">Simple View</div>
-      <div class="section-sub">OA Business Development &middot; Deals associated with contacts, grouped by contact create date &middot; Updated <span id="deals-updated"></span></div>
+      <div class="section-sub">OA Business Development &middot; Deals grouped by Discovery Call month &middot; Updated <span id="deals-updated"></span></div>
 
-      <!-- Weekly deals KPI cards -->
+      <!-- Monthly deals KPI cards (current month) -->
       <div style="font-size:14px;font-weight:600;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">
-        This Week &mdash; <span id="dp-week-label"></span>
+        This Month &mdash; <span id="dp-month-label"></span>
       </div>
       <div class="kpi-grid" style="margin-bottom:32px">
-        <div class="kpi-card" style="--accent-color:var(--accent)">
-          <div class="kpi-label">Total Deals</div>
-          <div class="kpi-value" style="color:var(--accent)" id="dp-total">—</div>
-          <div class="kpi-sub">In BD pipeline</div>
+        <div class="kpi-card" style="--accent-color:#14b8a6">
+          <div class="kpi-label">Discovery Calls</div>
+          <div class="kpi-value" style="color:#14b8a6" id="dp-dc">—</div>
+          <div class="kpi-sub">DC date in current month</div>
         </div>
-        <div class="kpi-card" style="--accent-color:var(--cyan)">
-          <div class="kpi-label">Discovery Call Attended</div>
-          <div class="kpi-value" style="color:var(--cyan)" id="dp-dc">—</div>
-          <div class="kpi-sub" id="dp-dc-rate">of total deals</div>
+        <div class="kpi-card" style="--accent-color:#8b5cf6">
+          <div class="kpi-label">Alignment Calls</div>
+          <div class="kpi-value" style="color:#8b5cf6" id="dp-ac">—</div>
+          <div class="kpi-sub">AC date in current month</div>
         </div>
-        <div class="kpi-card" style="--accent-color:var(--green)">
-          <div class="kpi-label">Alignment Call Attended</div>
-          <div class="kpi-value" style="color:var(--green)" id="dp-ac">—</div>
-          <div class="kpi-sub" id="dp-ac-rate">of total deals</div>
+        <div class="kpi-card" style="--accent-color:var(--orange)">
+          <div class="kpi-label">SA Signed</div>
+          <div class="kpi-value" style="color:var(--orange)" id="dp-sa">—</div>
+          <div class="kpi-sub">Service Agreements signed</div>
         </div>
         <div class="kpi-card" style="--accent-color:var(--yellow)">
-          <div class="kpi-label">Paid Recruitment Fee</div>
+          <div class="kpi-label">Deposit Settled</div>
           <div class="kpi-value" style="color:var(--yellow)" id="dp-paid">—</div>
-          <div class="kpi-sub" id="dp-paid-rate">of total deals</div>
+          <div class="kpi-sub">Recruitment fee paid</div>
         </div>
       </div>
 
@@ -8426,18 +8426,7 @@ function renderWeek(wk) {
   /* Top 10 outreach */
   renderTop10(wk);
 
-  /* Deals Progress — weekly KPI cards */
-  var dp = d.dealProgress;
-  setEl('dp-week-label', d.label + ' · ' + d.dates + ', ' + d.year);
-  if (dp) {
-    setEl('dp-total', dp.total);
-    setEl('dp-dc',    dp.dcAttended);
-    setEl('dp-ac',    dp.acAttended);
-    setEl('dp-paid',  dp.paid);
-    setHTML('dp-dc-rate',   dp.total > 0 ? pct(dp.dcAttended, dp.total) + ' DC rate' : 'of total deals');
-    setHTML('dp-ac-rate',   dp.total > 0 ? pct(dp.acAttended, dp.total) + ' AC rate' : 'of total deals');
-    setHTML('dp-paid-rate', dp.total > 0 ? pct(dp.paid,        dp.total) + ' paid rate' : 'of total deals');
-  }
+  /* Simple View KPI cards are now monthly — see renderDealsMonthly() */
 }
 
 /* ── WEEK-OVER-WEEK TABLE ── */
@@ -9005,6 +8994,14 @@ function renderDealsMonthly() {
     return;
   }
   if (data.length >= 2) setEl('deals-range-badge', data[0].label + ' – ' + data[data.length-1].label);
+
+  /* Monthly KPI cards — current month is the last entry */
+  var cur = data[data.length - 1] || {};
+  setEl('dp-month-label', cur.label || '—');
+  setEl('dp-dc',   cur.dcCount   != null ? cur.dcCount   : '—');
+  setEl('dp-ac',   cur.acCount   != null ? cur.acCount   : '—');
+  setEl('dp-sa',   cur.saSigned  != null ? cur.saSigned  : '—');
+  setEl('dp-paid', cur.paidCount != null ? cur.paidCount : '—');
 
   var html = '';
   data.forEach(function(m) {
