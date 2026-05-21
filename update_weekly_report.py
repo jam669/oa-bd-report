@@ -267,37 +267,24 @@ def get_deals_by_ids(deal_ids):
             result[str(d["id"])] = d.get("properties", {})
     return result
 
-def fetch_monthly_deal_details(contact_ids):
-    """Return BD pipeline deal details for the given OA BD contact IDs (for the monthly accordion).
+def fetch_monthly_deal_details(month_start, month_end):
+    """Return BD pipeline deal details for deals whose discovery_call_date falls in [month_start, month_end].
     Each row: {id, company, leadSource, dcDate, acDate, paidDate, signedDate, stage, amount, createDate}."""
-    if not contact_ids:
-        return []
-    assoc_map    = get_contact_deal_info(contact_ids)
-    all_deal_ids = list({did for ids in assoc_map.values() for did in ids})
-    if not all_deal_ids:
-        return []
-
-    props = ["pipeline", "dealname", "dealstage", "lead_source", "amount",
+    filters = [
+        {"propertyName": "pipeline",            "operator": "EQ",  "value": BD_PIPELINE_ID},
+        {"propertyName": "discovery_call_date", "operator": "GTE", "value": str(_date_ms(month_start))},
+        {"propertyName": "discovery_call_date", "operator": "LTE", "value": str(_date_ms(month_end))},
+    ]
+    props = ["dealname", "dealstage", "lead_source", "amount",
              "discovery_call_date", "alignment_call_date", "paid_recruitment_date",
              "pandadoc_signed", "createdate"]
-    result_props = {}
-    for i in range(0, len(all_deal_ids), 100):
-        inputs = [{"id": did} for did in all_deal_ids[i:i+100]]
-        r = requests.post(
-            f"{BASE_URL}/crm/v3/objects/deals/batch/read",
-            headers=HEADERS, json={"properties": props, "inputs": inputs}
-        )
-        if r.status_code not in (200, 207):
-            continue
-        for d in r.json().get("results", []):
-            result_props[str(d["id"])] = d.get("properties", {})
+    deals = search_all_deals(filters, props)
 
     rows = []
-    for did, p in result_props.items():
-        if p.get("pipeline") != BD_PIPELINE_ID:
-            continue
+    for d in deals:
+        p = d.get("properties", {})
         rows.append({
-            "id":          did,
+            "id":          d["id"],
             "company":     p.get("dealname", "Unknown"),
             "leadSource":  p.get("lead_source", "") or "",
             "dcDate":      (p.get("discovery_call_date")   or "")[:10],
@@ -308,7 +295,7 @@ def fetch_monthly_deal_details(contact_ids):
             "amount":      p.get("amount", "") or "",
             "createDate":  (p.get("createdate") or "")[:10],
         })
-    rows.sort(key=lambda r: r["createDate"], reverse=True)
+    rows.sort(key=lambda r: r["dcDate"])
     return rows
 
 def fetch_deals_progress(contact_ids):
@@ -717,7 +704,7 @@ def fetch_monthly_contacts(num_months=6):
 
         contact_ids  = [c["id"] for c in contacts]
         deals_prog   = fetch_deals_progress(contact_ids)
-        deal_details = fetch_monthly_deal_details(contact_ids)
+        deal_details = fetch_monthly_deal_details(month_start, month_end)
         sa_signed    = fetch_sa_signed_count(month_start, month_end)
         dc_count     = _fetch_deal_date_count("discovery_call_date",    month_start, month_end)
         ac_count     = _fetch_deal_date_count("alignment_call_date",     month_start, month_end)
