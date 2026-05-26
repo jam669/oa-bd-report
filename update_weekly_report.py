@@ -1003,13 +1003,111 @@ def fetch_long_view_analysis():
         else:         buckets["90+"]   += 1
 
     rows.sort(key=lambda r: r["paidDate"], reverse=True)
+    # Monthly cohort: contact volume / DCs / paid / conversion rate, Jan 2025 → today
+    monthly = fetch_long_view_monthly(rows)
+
     return {
         "periodStart": LONG_VIEW_START,
         "periodEnd":   datetime.now(MANILA_TZ).strftime("%Y-%m-%d"),
         "stats":       stats,
         "buckets":     buckets,
         "deals":       rows,
+        "monthly":     monthly,
     }
+
+def fetch_long_view_monthly(paid_deals_rows):
+    """Build month-by-month breakdown from LONG_VIEW_START to today.
+    For each month returns: contacts, dcs, paid, conversionPct, avgDays, paidDeals[].
+
+    - contacts: BD-Lead contacts (lead_category CONTAINS 'BD Lead') created in month
+    - dcs:      BD-pipeline deals with discovery_call_date in month
+    - paid:     BD-pipeline deals with paid_recruitment_date in month
+    - avgDays:  mean of (paidDate - dcDate) over paid_deals_rows whose paidDate is in month
+    """
+    print("\n[Long View] Building monthly cohort breakdown…")
+    mo_names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    now      = datetime.now(MANILA_TZ)
+
+    # Walk year-month from start to now.
+    start_y, start_m = 2025, 1
+    months = []
+    y, m = start_y, start_m
+    while (y, m) <= (now.year, now.month):
+        month_start = datetime(y, m, 1, 0, 0, 0, tzinfo=MANILA_TZ)
+        if m == 12:
+            month_end = datetime(y + 1, 1, 1, tzinfo=MANILA_TZ) - timedelta(seconds=1)
+        else:
+            month_end = datetime(y, m + 1, 1, tzinfo=MANILA_TZ) - timedelta(seconds=1)
+        is_partial = (y == now.year and m == now.month)
+        if is_partial:
+            month_end = now.replace(hour=23, minute=59, second=59, microsecond=0)
+        months.append((y, m, month_start, month_end, is_partial))
+        m += 1
+        if m == 13:
+            m = 1
+            y += 1
+
+    results = []
+    for y, m, month_start, month_end, is_partial in months:
+        label = f"{mo_names[m-1]} {y}"
+        print(f"    {label}…", end=" ", flush=True)
+
+        # Contact volume — BD Lead contacts created in month (CONTAINS_TOKEN handles multi-cat)
+        date_filters = [
+            {"propertyName": "createdate", "operator": "GTE", "value": to_iso(month_start)},
+            {"propertyName": "createdate", "operator": "LTE", "value": to_iso(month_end)},
+        ]
+        try:
+            contacts = search_contacts_by_categories(list(OA_BD_VALUES), date_filters, [PROP_LEAD_CATEGORY])
+            contact_n = len(contacts)
+        except Exception as e:
+            print(f"[contacts err: {e}]", end=" ", flush=True)
+            contact_n = None
+
+        # DC count (BD pipeline, discovery_call_date in month)
+        try:
+            dc_n = _fetch_deal_date_count("discovery_call_date", month_start, month_end)
+        except Exception as e:
+            print(f"[dc err: {e}]", end=" ", flush=True)
+            dc_n = None
+
+        # Paid count (BD pipeline, paid_recruitment_date in month)
+        try:
+            paid_n = _fetch_deal_date_count("paid_recruitment_date", month_start, month_end)
+        except Exception as e:
+            print(f"[paid err: {e}]", end=" ", flush=True)
+            paid_n = None
+
+        # Avg DC→Paid days for deals whose paidDate falls in this month
+        month_key   = f"{y}-{m:02d}"
+        paid_in_mo  = [d for d in paid_deals_rows if (d.get("paidDate") or "").startswith(month_key)]
+        if paid_in_mo:
+            days_list = [d["days"] for d in paid_in_mo if isinstance(d.get("days"), int)]
+            avg_days  = round(sum(days_list) / len(days_list), 1) if days_list else None
+        else:
+            avg_days  = None
+
+        conv_pct = round((paid_n / dc_n * 100), 1) if (dc_n and paid_n is not None and dc_n > 0) else None
+
+        results.append({
+            "key":           month_key,
+            "label":         label,
+            "year":          y,
+            "month":         m,
+            "partial":       is_partial,
+            "contacts":      contact_n,
+            "dcs":           dc_n,
+            "paid":          paid_n,
+            "conversionPct": conv_pct,
+            "avgDays":       avg_days,
+            "paidDeals":     paid_in_mo,
+        })
+        print(f"contacts={contact_n} | DC={dc_n} | Paid={paid_n}"
+              + (f" | avg={avg_days}d" if avg_days is not None else "")
+              + (" (partial)" if is_partial else ""))
+
+    print(f"  Long View monthly: {len(results)} months built")
+    return results
 
 # ── HTML PATCH ────────────────────────────────────────────────────────────────
 
