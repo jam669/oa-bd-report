@@ -180,14 +180,27 @@ def to_iso(dt):
 
 # ── HUBSPOT HELPERS ──────────────────────────────────────────────────────────
 
+def _hs_post(url, body, retries=4):
+    """POST to HubSpot with backoff retries on transient 400/429/5xx. Raises on exhaustion."""
+    import time
+    last_err = None
+    for attempt in range(retries):
+        r = requests.post(url, headers=HEADERS, json=body)
+        if r.ok:
+            return r
+        last_err = (r.status_code, r.text[:200])
+        if r.status_code in (400, 429) or 500 <= r.status_code < 600:
+            time.sleep(0.5 * (2 ** attempt))
+            continue
+        break
+    raise RuntimeError(f"HubSpot POST {url} failed after retries: {last_err}")
+
 def search_contacts(filters, properties, limit=100):
     """Single contacts search call."""
-    r = requests.post(
+    r = _hs_post(
         f"{BASE_URL}/crm/v3/objects/contacts/search",
-        headers=HEADERS,
-        json={"filterGroups": [{"filters": filters}], "properties": properties, "limit": limit}
+        {"filterGroups": [{"filters": filters}], "properties": properties, "limit": limit}
     )
-    r.raise_for_status()
     return r.json()
 
 def _search_one_batch(filter_groups, properties):
@@ -254,8 +267,7 @@ def search_all_deals(filters, properties):
         body = {"filterGroups": [{"filters": filters}], "properties": properties, "limit": 200}
         if after:
             body["after"] = after
-        r = requests.post(f"{BASE_URL}/crm/v3/objects/deals/search", headers=HEADERS, json=body)
-        r.raise_for_status()
+        r = _hs_post(f"{BASE_URL}/crm/v3/objects/deals/search", body)
         data = r.json()
         results.extend(data.get("results", []))
         after = data.get("paging", {}).get("next", {}).get("after")
@@ -484,8 +496,7 @@ def _fetch_deal_date_count(date_prop, start, end):
         {"propertyName": date_prop,   "operator": "LTE", "value": str(_date_ms(end))},
     ]
     body = {"filterGroups": [{"filters": filters}], "properties": ["hs_object_id"], "limit": 1}
-    r = requests.post(f"{BASE_URL}/crm/v3/objects/deals/search", headers=HEADERS, json=body)
-    r.raise_for_status()
+    r = _hs_post(f"{BASE_URL}/crm/v3/objects/deals/search", body)
     return r.json().get("total", 0)
 
 def _fetch_deal_date_list(date_prop, start, end, date_field):
@@ -501,8 +512,7 @@ def _fetch_deal_date_list(date_prop, start, end, date_field):
         body = {"filterGroups": [{"filters": filters}], "properties": props, "limit": 100}
         if after:
             body["after"] = after
-        r = requests.post(f"{BASE_URL}/crm/v3/objects/deals/search", headers=HEADERS, json=body)
-        r.raise_for_status()
+        r = _hs_post(f"{BASE_URL}/crm/v3/objects/deals/search", body)
         data = r.json()
         results.extend(data.get("results", []))
         after = data.get("paging", {}).get("next", {}).get("after")
@@ -544,8 +554,7 @@ def fetch_dc_deals(start, end):
         body = {"filterGroups": [{"filters": filters}], "properties": props, "limit": 100}
         if after:
             body["after"] = after
-        r = requests.post(f"{BASE_URL}/crm/v3/objects/deals/search", headers=HEADERS, json=body)
-        r.raise_for_status()
+        r = _hs_post(f"{BASE_URL}/crm/v3/objects/deals/search", body)
         data = r.json()
         results.extend(data.get("results", []))
         after = data.get("paging", {}).get("next", {}).get("after")
@@ -579,8 +588,7 @@ def fetch_ac_deals(start, end):
         body = {"filterGroups": [{"filters": filters}], "properties": props, "limit": 100}
         if after:
             body["after"] = after
-        r = requests.post(f"{BASE_URL}/crm/v3/objects/deals/search", headers=HEADERS, json=body)
-        r.raise_for_status()
+        r = _hs_post(f"{BASE_URL}/crm/v3/objects/deals/search", body)
         data = r.json()
         results.extend(data.get("results", []))
         after = data.get("paging", {}).get("next", {}).get("after")
@@ -608,8 +616,7 @@ def fetch_deals_created_count(start, end):
         {"propertyName": "createdate", "operator": "LTE", "value": to_iso(end)},
     ]
     body = {"filterGroups": [{"filters": filters}], "properties": ["hs_object_id"], "limit": 1}
-    r = requests.post(f"{BASE_URL}/crm/v3/objects/deals/search", headers=HEADERS, json=body)
-    r.raise_for_status()
+    r = _hs_post(f"{BASE_URL}/crm/v3/objects/deals/search", body)
     return r.json().get("total", 0)
 
 # ── TOP 50 OUTREACH ───────────────────────────────────────────────────────────
@@ -1372,10 +1379,28 @@ def main():
     paid_settled   = len(deposit_deals)
     print(f"  Deals created: {deals_count} | SA: {sa_signed} | DC: {dc_count} | AC: {ac_count} | Deposit: {paid_settled}")
 
-    # Top 50 outreach
+    # Top 50 outreach — soft-fail; not a KPI, just a ranking list.
+    # A failure here must NOT block the executive KPI numbers from refreshing.
     print("\n[4/5] Building top 50 outreach list…")
-    top_accounts = fetch_top_50()
-    print(f"  Top accounts: {len(top_accounts)}")
+    try:
+        top_accounts = fetch_top_50()
+        print(f"  Top accounts: {len(top_accounts)}")
+    except Exception as e:
+        print(f"  [WARN] top 50 fetch failed, keeping previous list: {e}")
+        # Preserve whatever was in the HTML last time so the ranking page isn't empty.
+        try:
+            with open(HTML_FILE, "r", encoding="utf-8") as _f:
+                _html = _f.read()
+            _m = re.search(r'<script id="report-data" type="application/json">(.*?)</script>', _html, re.DOTALL)
+            _prev = json.loads(_m.group(1)) if _m else {}
+            _prev_wk = _prev.get("weeks", {})
+            # Use the most recent week's topAccounts as fallback
+            if _prev_wk:
+                top_accounts = _prev_wk[max(_prev_wk.keys(), key=int)].get("topAccounts", [])
+            else:
+                top_accounts = []
+        except Exception:
+            top_accounts = []
 
     # Paid deals
     print("\n[5/5] Fetching Outbound Paid deals + monthly data…")
