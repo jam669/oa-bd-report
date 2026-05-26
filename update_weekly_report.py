@@ -20,6 +20,7 @@ import json
 import os
 import re
 import sys
+from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 
 import requests
@@ -903,85 +904,109 @@ def _batch_read_contacts(contact_ids, props):
     return out
 
 def fetch_long_view_analysis():
-    """Long View: time between Discovery Call Date and Paid Recruitment Date for OA BD
-    leads created since 2025-01-01.
+    """Long View — cohort by CONTACT CREATE DATE (Jan 1 2025 → today).
 
-    Filter chain:
-      - BD pipeline deals where both discovery_call_date AND paid_recruitment_date are set
-      - At least one associated contact has lead_category = 'BD Lead' (OA Business Development)
-      - That contact was createdate >= 2025-01-01
+    Per user spec:
+      - Cohort = BD-Lead contacts created since 2025-01-01 (lead_category CONTAINS 'BD Lead')
+      - Conversion timeline = paid_recruitment_date − contact createdate
+      - A paid deal lands in the cohort month of its associated contact's create date,
+        regardless of when the deposit itself was paid
+      - A deal qualifies regardless of whether discovery_call_date is set
     """
-    print(f"\n[Long View] Fetching paid BD deals with DC dates since {LONG_VIEW_START}…")
+    print(f"\n[Long View] Fetching BD pipeline paid deals (cohort since {LONG_VIEW_START})…")
 
-    filters = [
+    # Step 1: all BD pipeline deals with paid_recruitment_date set (any date).
+    paid_filters = [
         {"propertyName": "pipeline",              "operator": "EQ",           "value": BD_PIPELINE_ID},
         {"propertyName": "paid_recruitment_date", "operator": "HAS_PROPERTY"},
-        {"propertyName": "discovery_call_date",   "operator": "HAS_PROPERTY"},
     ]
-    props = ["dealname", "discovery_call_date", "paid_recruitment_date",
-             "lead_source", "amount", "dealstage"]
-    deals = search_all_deals(filters, props)
-    print(f"  BD paid deals (any date) with DC: {len(deals)}")
+    deal_props = ["dealname", "discovery_call_date", "paid_recruitment_date",
+                  "lead_source", "amount", "dealstage"]
+    paid_deals = search_all_deals(paid_filters, deal_props)
+    print(f"  BD paid deals (all-time): {len(paid_deals)}")
 
-    if not deals:
-        return {
-            "periodStart": LONG_VIEW_START,
-            "periodEnd":   datetime.now(MANILA_TZ).strftime("%Y-%m-%d"),
-            "stats":       {"count": 0, "avg": 0, "median": 0, "min": 0, "max": 0},
-            "buckets":     {},
-            "deals":       [],
-        }
+    # Step 2: all BD pipeline deals with discovery_call_date set — used to count DCs
+    # per cohort month (a contact had a DC if any of their deals has a DC date).
+    print(f"[Long View] Fetching BD pipeline deals with DC dates…")
+    dc_filters = [
+        {"propertyName": "pipeline",            "operator": "EQ",           "value": BD_PIPELINE_ID},
+        {"propertyName": "discovery_call_date", "operator": "HAS_PROPERTY"},
+    ]
+    dc_deals = search_all_deals(dc_filters, ["discovery_call_date"])
+    print(f"  BD deals with DC date set: {len(dc_deals)}")
 
-    deal_ids = [d["id"] for d in deals]
-    deal_to_contacts = _batch_read_deal_contacts(deal_ids)
+    # Step 3: load contact associations + properties in one pass for both deal sets.
+    all_deal_ids = list({d["id"] for d in paid_deals} | {d["id"] for d in dc_deals})
+    deal_to_contacts = _batch_read_deal_contacts(all_deal_ids)
     all_contact_ids  = list({cid for cids in deal_to_contacts.values() for cid in cids})
     print(f"  Associated contacts: {len(all_contact_ids)}")
-
     contact_props = _batch_read_contacts(all_contact_ids,
                                          [PROP_LEAD_CATEGORY, "createdate"])
 
+    # Step 4: identify qualified contacts — BD-Lead + created since LONG_VIEW_START.
+    # Uses substring match because lead_category is multi-select (checkbox); HubSpot
+    # serializes multi-values as a semicolon-joined string.
+    qualified = {}
+    for cid, cp in contact_props.items():
+        lead_cat = cp.get(PROP_LEAD_CATEGORY) or ""
+        cdate    = (cp.get("createdate") or "")[:10]
+        if OA_BD_VALUE in lead_cat and cdate >= LONG_VIEW_START:
+            qualified[cid] = cdate
+    print(f"  Qualified contacts (BD-Lead, created >= {LONG_VIEW_START}): {len(qualified)}")
+
+    def _first_qualified_contact_for_deal(did):
+        for cid in deal_to_contacts.get(did, []):
+            if cid in qualified:
+                return cid
+        return None
+
+    # Step 5: build the paid-deal rows.
+    # days = paid_recruitment_date − contact_created (new definition)
     rows = []
-    for d in deals:
+    for d in paid_deals:
         did = d["id"]
         p   = d.get("properties", {})
-        dc   = (p.get("discovery_call_date")   or "")[:10]
         paid = (p.get("paid_recruitment_date") or "")[:10]
-        if not dc or not paid:
+        if not paid:
             continue
-
-        matching = None
-        for cid in deal_to_contacts.get(did, []):
-            cp       = contact_props.get(cid, {})
-            lead_cat = cp.get(PROP_LEAD_CATEGORY, "")
-            cdate    = (cp.get("createdate") or "")[:10]
-            if lead_cat == OA_BD_VALUE and cdate >= LONG_VIEW_START:
-                matching = {"id": cid, "createdate": cdate}
-                break
-
-        if not matching:
+        cid = _first_qualified_contact_for_deal(did)
+        if not cid:
             continue
-
+        ccreated = qualified[cid]
         try:
-            days = (datetime.fromisoformat(paid) - datetime.fromisoformat(dc)).days
+            days = (datetime.fromisoformat(paid) - datetime.fromisoformat(ccreated)).days
         except Exception:
             continue
         if days < 0:
-            continue  # deposit paid before DC — likely data entry oddity
+            continue  # deposit paid before contact created — data oddity
 
         rows.append({
             "dealId":         did,
+            "contactId":      cid,
             "company":        p.get("dealname", "Unknown"),
-            "contactCreated": matching["createdate"],
-            "dcDate":         dc,
+            "contactCreated": ccreated,
+            "dcDate":         (p.get("discovery_call_date") or "")[:10],
             "paidDate":       paid,
-            "days":           days,
+            "days":           days,    # contact created → paid
             "leadSource":     p.get("lead_source", "") or "",
             "amount":         p.get("amount", "") or "",
             "stage":          STAGE_LABELS.get(p.get("dealstage", ""), p.get("dealstage", "")),
         })
+    print(f"  Paid deals in cohort: {len(rows)}")
 
-    print(f"  Deals matching OA BD contact + 2025+ filter: {len(rows)}")
+    # Step 6: DC cohort — set of qualified contacts that have any DC-having deal.
+    # Keyed by contact-create month so we can count DCs per cohort month later.
+    dc_contacts_by_month = defaultdict(set)
+    for d in dc_deals:
+        cid = _first_qualified_contact_for_deal(d["id"])
+        if not cid:
+            continue
+        ccreated = qualified[cid]
+        month_key = ccreated[:7]  # YYYY-MM
+        dc_contacts_by_month[month_key].add(cid)
+    print(f"  Months with DC activity: {len(dc_contacts_by_month)}")
 
+    # Step 7: top-level conversion stats (days = paid − contact created).
     days_list = [r["days"] for r in rows]
     if days_list:
         srt = sorted(days_list)
@@ -993,18 +1018,18 @@ def fetch_long_view_analysis():
     else:
         stats = {"count": 0, "avg": 0, "median": 0, "min": 0, "max": 0}
 
-    buckets = {"0–7": 0, "8–14": 0, "15–30": 0, "31–60": 0, "61–90": 0, "90+": 0}
+    buckets = {"0–14": 0, "15–30": 0, "31–60": 0, "61–90": 0, "91–180": 0, "180+": 0}
     for v in days_list:
-        if v <= 7:    buckets["0–7"]   += 1
-        elif v <= 14: buckets["8–14"]  += 1
-        elif v <= 30: buckets["15–30"] += 1
-        elif v <= 60: buckets["31–60"] += 1
-        elif v <= 90: buckets["61–90"] += 1
-        else:         buckets["90+"]   += 1
+        if v <= 14:    buckets["0–14"]   += 1
+        elif v <= 30:  buckets["15–30"]  += 1
+        elif v <= 60:  buckets["31–60"]  += 1
+        elif v <= 90:  buckets["61–90"]  += 1
+        elif v <= 180: buckets["91–180"] += 1
+        else:          buckets["180+"]   += 1
 
     rows.sort(key=lambda r: r["paidDate"], reverse=True)
-    # Monthly cohort: contact volume / DCs / paid / conversion rate, Jan 2025 → today
-    monthly = fetch_long_view_monthly(rows)
+    # Monthly cohort: grouped by contact-create month (not event month)
+    monthly = fetch_long_view_monthly(rows, dc_contacts_by_month)
 
     return {
         "periodStart": LONG_VIEW_START,
@@ -1015,21 +1040,31 @@ def fetch_long_view_analysis():
         "monthly":     monthly,
     }
 
-def fetch_long_view_monthly(paid_deals_rows):
-    """Build month-by-month breakdown from LONG_VIEW_START to today.
-    For each month returns: contacts, dcs, paid, conversionPct, avgDays, paidDeals[].
+def fetch_long_view_monthly(paid_deals_rows, dc_contacts_by_month):
+    """Build month-by-month cohort from LONG_VIEW_START to today.
 
-    - contacts: BD-Lead contacts (lead_category CONTAINS 'BD Lead') created in month
-    - dcs:      BD-pipeline deals with discovery_call_date in month
-    - paid:     BD-pipeline deals with paid_recruitment_date in month
-    - avgDays:  mean of (paidDate - dcDate) over paid_deals_rows whose paidDate is in month
+    Cohort grouping = CONTACT'S create date month (per user spec).
+    For each month returns:
+      - contacts: BD-Lead contacts whose createdate falls in month
+      - dcs:      count of those cohort contacts who have any deal with DC date set
+      - paid:     count of paid deals whose contact's createdate falls in month
+      - paidDeals: those deals (with full detail rows)
+      - avgDays:   mean(paidDate − contactCreated) over paidDeals
+      - conversionPct: paid / dcs (cohort-internal conversion rate)
     """
-    print("\n[Long View] Building monthly cohort breakdown…")
+    print("\n[Long View] Building monthly cohort (by contact-create month)…")
     mo_names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
     now      = datetime.now(MANILA_TZ)
 
-    # Walk year-month from start to now.
-    start_y, start_m = 2025, 1
+    # Pre-group paid rows by contact-create month so we don't scan the list 17 times.
+    paid_by_month = defaultdict(list)
+    for r in paid_deals_rows:
+        ccreated = r.get("contactCreated") or ""
+        if len(ccreated) >= 7:
+            paid_by_month[ccreated[:7]].append(r)
+
+    # Walk year-month from LONG_VIEW_START to now.
+    start_y, start_m = int(LONG_VIEW_START[:4]), int(LONG_VIEW_START[5:7])
     months = []
     y, m = start_y, start_m
     while (y, m) <= (now.year, now.month):
@@ -1049,45 +1084,33 @@ def fetch_long_view_monthly(paid_deals_rows):
 
     results = []
     for y, m, month_start, month_end, is_partial in months:
-        label = f"{mo_names[m-1]} {y}"
+        label     = f"{mo_names[m-1]} {y}"
+        month_key = f"{y}-{m:02d}"
         print(f"    {label}…", end=" ", flush=True)
 
-        # Contact volume — BD Lead contacts created in month (CONTAINS_TOKEN handles multi-cat)
+        # Contact volume: BD-Lead contacts created in this month.
         date_filters = [
             {"propertyName": "createdate", "operator": "GTE", "value": to_iso(month_start)},
             {"propertyName": "createdate", "operator": "LTE", "value": to_iso(month_end)},
         ]
         try:
-            contacts = search_contacts_by_categories(list(OA_BD_VALUES), date_filters, [PROP_LEAD_CATEGORY])
+            contacts  = search_contacts_by_categories(list(OA_BD_VALUES), date_filters, [PROP_LEAD_CATEGORY])
             contact_n = len(contacts)
         except Exception as e:
             print(f"[contacts err: {e}]", end=" ", flush=True)
             contact_n = None
 
-        # DC count (BD pipeline, discovery_call_date in month)
-        try:
-            dc_n = _fetch_deal_date_count("discovery_call_date", month_start, month_end)
-        except Exception as e:
-            print(f"[dc err: {e}]", end=" ", flush=True)
-            dc_n = None
+        # DCs in cohort = qualified contacts (created this month) who have any DC-having deal.
+        dc_n = len(dc_contacts_by_month.get(month_key, set()))
 
-        # Paid count (BD pipeline, paid_recruitment_date in month)
-        try:
-            paid_n = _fetch_deal_date_count("paid_recruitment_date", month_start, month_end)
-        except Exception as e:
-            print(f"[paid err: {e}]", end=" ", flush=True)
-            paid_n = None
+        # Paid deals whose CONTACT was created in this month (regardless of when they paid).
+        paid_in_mo = paid_by_month.get(month_key, [])
+        paid_n     = len(paid_in_mo)
+        days_list  = [d["days"] for d in paid_in_mo if isinstance(d.get("days"), int)]
+        avg_days   = round(sum(days_list) / len(days_list), 1) if days_list else None
 
-        # Avg DC→Paid days for deals whose paidDate falls in this month
-        month_key   = f"{y}-{m:02d}"
-        paid_in_mo  = [d for d in paid_deals_rows if (d.get("paidDate") or "").startswith(month_key)]
-        if paid_in_mo:
-            days_list = [d["days"] for d in paid_in_mo if isinstance(d.get("days"), int)]
-            avg_days  = round(sum(days_list) / len(days_list), 1) if days_list else None
-        else:
-            avg_days  = None
-
-        conv_pct = round((paid_n / dc_n * 100), 1) if (dc_n and paid_n is not None and dc_n > 0) else None
+        # Conversion: paid / dcs (cohort-internal — both numerator and denominator are this cohort).
+        conv_pct = round((paid_n / dc_n * 100), 1) if dc_n > 0 else None
 
         results.append({
             "key":           month_key,
