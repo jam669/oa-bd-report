@@ -149,13 +149,16 @@ def is_connected(lead_status):
 
 # ── DATE HELPERS ──────────────────────────────────────────────────────────────
 
-def current_week_range():
-    """Return (start_dt, end_dt, week_num, label_dates) for this report week.
-    Week ends today (Tuesday) and starts 6 days ago (Wednesday) in Manila time."""
-    today = datetime.now(MANILA_TZ)
-    end   = today.replace(hour=23, minute=59, second=59, microsecond=0)
-    start = (today - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
-    week_num = start.isocalendar()[1]
+def _week_range_for_anchor(anchor_dt):
+    """Return (start_dt, end_dt, week_num, dates_label) for a 7-day Wed–Tue window
+    ending on the Tuesday <= anchor_dt. Manila time."""
+    wd        = anchor_dt.weekday()          # Mon=0, Tue=1, …, Sun=6
+    days_back = (wd - 1) % 7                  # Tue=0, Wed=1, …, Mon=6
+    end       = (anchor_dt - timedelta(days=days_back)).replace(
+                    hour=23, minute=59, second=59, microsecond=0)
+    start     = (end - timedelta(days=6)).replace(
+                    hour=0, minute=0, second=0, microsecond=0)
+    week_num  = start.isocalendar()[1]
 
     mo = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
     if start.month == end.month:
@@ -164,6 +167,13 @@ def current_week_range():
         dates_label = f"{mo[start.month-1]} {start.day}–{mo[end.month-1]} {end.day}"
 
     return start, end, week_num, dates_label
+
+def current_week_range():
+    """Report-week range, anchored to the most recent Tuesday in Manila time.
+    Cron runs Tuesday 09:00 Manila and reports the Wed–Tue week ending that Tuesday.
+    Manual mid-week runs report the most recently completed Wed–Tue week so existing
+    weeks never get a partial-data overwrite and tab dates never gap."""
+    return _week_range_for_anchor(datetime.now(MANILA_TZ))
 
 def to_iso(dt):
     return dt.isoformat()
@@ -181,31 +191,54 @@ def search_contacts(filters, properties, limit=100):
     return r.json()
 
 def _search_one_batch(filter_groups, properties):
-    """Single paginated contacts search (≤5 filter groups per HubSpot limit)."""
+    """Single paginated contacts search (≤5 filter groups per HubSpot limit).
+    Retries on transient errors (400/429/5xx) instead of silently dropping pages —
+    HubSpot's search API returns occasional 400s under load and the old behavior
+    truncated week counts."""
+    import time
     results, after = [], None
     while True:
         body = {"filterGroups": filter_groups, "properties": properties, "limit": 100}
         if after:
             body["after"] = after
-        r = requests.post(f"{BASE_URL}/crm/v3/objects/contacts/search", headers=HEADERS, json=body)
-        if not r.ok:
-            print(f"  [WARN] contacts search {r.status_code}: {r.text[:200]}")
+
+        last_err = None
+        for attempt in range(4):
+            r = requests.post(f"{BASE_URL}/crm/v3/objects/contacts/search",
+                              headers=HEADERS, json=body)
+            if r.ok:
+                break
+            last_err = (r.status_code, r.text[:200])
+            # Transient: retry. 401/403 = auth → give up.
+            if r.status_code in (400, 429) or 500 <= r.status_code < 600:
+                time.sleep(0.5 * (2 ** attempt))
+                continue
             break
-        data = r.json()
+        else:
+            print(f"  [ERROR] contacts search exhausted retries {last_err}")
+            raise RuntimeError(f"HubSpot contacts search failed after retries: {last_err}")
+
+        if not r.ok:
+            print(f"  [ERROR] contacts search {r.status_code}: {r.text[:200]}")
+            raise RuntimeError(f"HubSpot contacts search failed: {r.status_code}")
+
+        data    = r.json()
         results.extend(data.get("results", []))
-        after = data.get("paging", {}).get("next", {}).get("after")
+        after   = data.get("paging", {}).get("next", {}).get("after")
         if not after:
             break
     return results
 
 def search_contacts_by_categories(cat_values, shared_filters, properties):
-    """Search contacts matching any lead_category value + shared_filters.
-    Batches into groups of 5 to stay within HubSpot's filter group limit."""
+    """Search contacts whose multi-select lead_category contains any of cat_values + shared_filters.
+    Uses CONTAINS_TOKEN because lead_category is a checkbox (multi-value) enumeration —
+    EQ misses contacts that have lead_category=['BD Lead','Outbound Paid']. Batches into
+    groups of 5 to stay within HubSpot's filterGroups limit."""
     seen, results = set(), []
     for i in range(0, len(cat_values), 5):
         batch = cat_values[i:i+5]
         groups = [
-            {"filters": [{"propertyName": PROP_LEAD_CATEGORY, "operator": "EQ", "value": v}] + shared_filters}
+            {"filters": [{"propertyName": PROP_LEAD_CATEGORY, "operator": "CONTAINS_TOKEN", "value": v}] + shared_filters}
             for v in batch
         ]
         for c in _search_one_batch(groups, properties):
@@ -1162,6 +1195,121 @@ def backfill_missing_fields():
         f.write(html)
     print(f"  Backfilled {patched} week(s). HTML saved.")
 
+# ── REBUILD WEEKS ────────────────────────────────────────────────────────────
+
+def rebuild_weeks():
+    """Re-key every stored week to a clean Wed–Tue range and refresh all its stats.
+    Fixes legacy weeks whose start/end dates drifted off the Tuesday anchor (gaps).
+    Preserves week_num key (W19 stays W19) and topAccounts (skipped to save time)."""
+    print(f"\n[REBUILD] Reading {HTML_FILE}…")
+    with open(HTML_FILE, "r", encoding="utf-8") as f:
+        html = f.read()
+    m = re.search(r'<script id="report-data" type="application/json">(.*?)</script>', html, re.DOTALL)
+    if not m:
+        raise RuntimeError("Could not find report-data script tag")
+    report = json.loads(m.group(1))
+
+    sorted_keys = sorted(report["weeks"].keys(), key=int)
+    for wk_str in sorted_keys:
+        d   = report["weeks"][wk_str]
+        old_dates = d.get("dates", "")
+        # Anchor: take the stored endDate, snap to its nearest Tue ≤ endDate
+        try:
+            anchor = datetime.fromisoformat(d["endDate"]).replace(tzinfo=MANILA_TZ)
+        except Exception:
+            print(f"  W{wk_str}: bad endDate {d.get('endDate')!r}, skipping")
+            continue
+        start, end, _ignored_wk, dates_label = _week_range_for_anchor(anchor)
+        print(f"\n  W{wk_str}: {old_dates}  ->  {dates_label}  ({start.date()} → {end.date()})")
+
+        # Refresh contact stats
+        stats, weekly_contact_ids = fetch_weekly_contacts(start, end)
+        # Refresh deal-driven metrics
+        deals_count   = fetch_deals_created_count(start, end)
+        dc_deals      = fetch_dc_deals(start, end)
+        ac_deals      = fetch_ac_deals(start, end)
+        sa_deals      = fetch_sa_deals(start, end)
+        deposit_deals = fetch_deposit_deals(start, end)
+        weekly_deals_progress = fetch_deals_progress(weekly_contact_ids)
+        valid_total = stats["valid_strict"] + stats["valid_ni"]
+
+        d.update({
+            "dates":      dates_label,
+            "startDate":  start.strftime("%Y-%m-%d"),
+            "endDate":    end.strftime("%Y-%m-%d"),
+            "year":       end.year,
+            "contacts":   stats["contacts_total"],
+            "valid":      valid_total,
+            "validStrict": stats["valid_strict"],
+            "validNI":     stats["valid_ni"],
+            "connected":   stats["connected"],
+            "qualified":   valid_total,
+            "deals":       deals_count,
+            "dealsAll":    deals_count,
+            "spam":              stats["spam"],
+            "jobseekers":        stats["jobseeker"],
+            "serviceProviders":  stats["service_provider"],
+            "unqualified":       stats["unqualified"],
+            "noValidity":        stats["no_validity"],
+            "inbound":           stats["inbound"],
+            "outbound":          stats["outbound"],
+            "sp":                stats["sp"],
+            "other":             stats["other"],
+            "inboundValid":      stats["inbound_valid"],
+            "inboundConnected":  stats["inbound_connected"],
+            "outboundValid":     stats["outbound_valid"],
+            "outboundConnected": stats["outbound_connected"],
+            "spValid":           stats["sp_valid"],
+            "spConnected":       stats["sp_connected"],
+            "dealProgress":      weekly_deals_progress,
+            "saDeals":           sa_deals,
+            "saSigned":          len(sa_deals),
+            "dcCount":           len(dc_deals),
+            "dcDeals":           dc_deals,
+            "acCount":           len(ac_deals),
+            "acDeals":           ac_deals,
+            "depositDeals":      deposit_deals,
+            "paidSettled":       len(deposit_deals),
+        })
+        print(f"    contacts={stats['contacts_total']} valid={valid_total} "
+              f"connected={stats['connected']} deals={deals_count} "
+              f"SA={len(sa_deals)} DC={len(dc_deals)} AC={len(ac_deals)} "
+              f"Deposit={len(deposit_deals)}")
+
+    # Persist
+    new_json = json.dumps(report, indent=2, ensure_ascii=False, default=str)
+    new_tag  = f'<script id="report-data" type="application/json">\n{new_json}\n</script>'
+    html     = html[:m.start()] + new_tag + html[m.end():]
+
+    # Update the static week-tab labels to match (uses make_tabs style logic inline)
+    today = datetime.now(MANILA_TZ)
+    _, _, current_wk, _ = current_week_range()
+    months_short = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    tabs = []
+    for k in sorted_keys:
+        w = report["weeks"][k]
+        active = " active" if int(k) == current_wk else ""
+        try:
+            end_dt   = datetime.fromisoformat(w["endDate"])
+            my_label = f'{months_short[end_dt.month - 1]} {end_dt.year}'
+        except Exception:
+            my_label = str(w.get("year", ""))
+        tabs.append(
+            f'<button class="week-tab{active}" data-week="{k}" '
+            f'onclick="selectWeek({k}, this)">'
+            f'{my_label} &middot; W{k}</button>'
+        )
+    tab_html = "\n        ".join(tabs)
+    html = re.sub(
+        r'(<div class="week-tabs">)\s*(.*?)\s*(</div>)',
+        rf'\g<1>\n        {tab_html}\n      \g<3>',
+        html, flags=re.DOTALL, count=1
+    )
+
+    with open(HTML_FILE, "w", encoding="utf-8") as f:
+        f.write(html)
+    print(f"\n  Rebuilt {len(sorted_keys)} week(s). HTML saved.")
+
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -1177,6 +1325,13 @@ def main():
             print("ERROR: set HUBSPOT_TOKEN before running --backfill")
             sys.exit(1)
         backfill_missing_fields()
+        return
+
+    if "--rebuild-weeks" in sys.argv:
+        if not HUBSPOT_TOKEN:
+            print("ERROR: set HUBSPOT_TOKEN before running --rebuild-weeks")
+            sys.exit(1)
+        rebuild_weeks()
         return
 
     if not HUBSPOT_TOKEN:
