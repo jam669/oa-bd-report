@@ -506,19 +506,19 @@
   <nav class="sidebar">
     <div class="sidebar-label">Report Sections</div>
     <div class="nav-item active" onclick="switchPage('summary', this)">
-      <span class="nav-icon">&#128202;</span> Executive Summary
-    </div>
-    <div class="nav-item" onclick="switchPage('longview', this)">
-      <span class="nav-icon">&#128302;</span> Long View
+      <span class="nav-icon">&#128202;</span> Weekly Summary
     </div>
     <div class="nav-item" onclick="switchPage('paid', this)">
       <span class="nav-icon">&#128176;</span> Paid Outbound
     </div>
-    <div class="nav-item" onclick="switchPage('monthly', this)">
-      <span class="nav-icon">&#128197;</span> Monthly Progress
-    </div>
     <div class="nav-item" onclick="switchPage('deals', this)">
       <span class="nav-icon">&#128200;</span> Simple View
+    </div>
+    <div class="nav-item" onclick="switchPage('longview', this)">
+      <span class="nav-icon">&#128302;</span> Long View
+    </div>
+    <div class="nav-item" onclick="switchPage('monthly', this)">
+      <span class="nav-icon">&#128197;</span> Monthly Progress
     </div>
     <hr class="sidebar-divider" />
     <div class="nav-item" onclick="switchPage('funnel', this)">
@@ -564,7 +564,7 @@
 
     <!-- ===== PAGE: EXECUTIVE SUMMARY ===== -->
     <div class="page active" id="page-summary">
-      <div class="section-title">Executive Summary</div>
+      <div class="section-title">Weekly Summary</div>
       <div class="section-sub" id="summary-sub">OA Business Development &middot; Week 17 &middot; Apr 22&ndash;28, 2026</div>
 
       <!-- KPI CARDS -->
@@ -1335,6 +1335,17 @@
         &middot; Time between Contact Created and Paid Recruitment Date
       </div>
 
+      <!-- Long View — month-by-month accordion (Jan 2025 → today) -->
+      <div class="table-card" style="margin-bottom:28px">
+        <div class="table-header">
+          <h3>Month-by-Month View</h3>
+          <span class="badge badge-muted">Click a month to expand · Jan 2025 → present</span>
+        </div>
+        <div id="lv-monthly-accordion" style="display:flex;flex-direction:column;gap:8px;padding:8px">
+          <div style="color:var(--muted);padding:12px">Loading&hellip;</div>
+        </div>
+      </div>
+
       <!-- KPI cards -->
       <div class="kpi-grid" style="margin-bottom:24px">
         <div class="kpi-card" style="--accent-color:var(--accent)">
@@ -1397,17 +1408,6 @@
             <tr><td colspan="9" style="color:var(--muted)">Loading&hellip;</td></tr>
           </tbody>
         </table>
-      </div>
-
-      <!-- Long View — month-by-month accordion (Jan 2025 → today) -->
-      <div class="table-card" style="margin-top:28px">
-        <div class="table-header">
-          <h3>Month-by-Month View</h3>
-          <span class="badge badge-muted">Click a month to expand · Jan 2025 → present</span>
-        </div>
-        <div id="lv-monthly-accordion" style="display:flex;flex-direction:column;gap:8px;padding:8px">
-          <div style="color:var(--muted);padding:12px">Loading&hellip;</div>
-        </div>
       </div>
     </div>
 
