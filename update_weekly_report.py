@@ -1040,6 +1040,261 @@ def fetch_long_view_analysis():
         "monthly":     monthly,
     }
 
+# ── RAW DEALS TABLE (Simple View source) + FUNNEL MATRIX (Long View) ────────
+
+H_AND_R_STAGE_ID  = "133348729"   # Hiring and Recruiting
+CLOSED_WON_ID     = "132946334"
+
+# Each stage's attendance enum uses DIFFERENT internal values from its labels.
+# DC:  'Attended' shows as "DC Attended" · 'DC Unqualified' also = call happened.
+# AC:  'Prospect attended' shows as "AC Attended" · 'AC Awaiting REC Payment' = attended-and-pre-paying.
+# CD:  'CD No Attended' shows as "CD Attended" (HubSpot quirk).
+DC_ATTENDED_INTERNAL = {"Attended", "DC Unqualified"}
+AC_ATTENDED_INTERNAL = {"Prospect attended", "AC Awaiting REC Payment"}
+CD_ATTENDED_INTERNAL = {"CD No Attended"}
+
+# Internal-value → human-readable label for Raw Deals display.
+DC_ATTENDANCE_LABELS = {
+    "Attended": "DC Attended",        "No show": "DC No Show",
+    "Rescheduled": "DC Rescheduled",  "Yes": "DC Scheduled",
+    "DC Unqualified": "DC Unqualified","DC Skip": "DC Skip",
+}
+AC_ATTENDANCE_LABELS = {
+    "Prospect attended": "AC Attended",       "Rescheduled": "AC Rescheduled",
+    "Prospect no show": "AC No Show",          "Scheduled": "AC Scheduled",
+    "AC Awaiting REC Payment": "AC Awaiting REC Payment",
+    "AC Skip": "AC Skip",
+}
+CD_ATTENDANCE_LABELS = {
+    "CD No Show": "CD No Show",        "CD Scheduled": "CD Scheduled",
+    "CD No Attended": "CD Attended",   "CD Skip": "CD Skip",
+}
+
+def fetch_raw_deals_table():
+    """Arnold's Raw Deals view: one row per BD-pipeline deal, filtered to deals
+    whose associated contact is BD-Lead (lead_category CONTAINS 'BD Lead') and
+    was created since LONG_VIEW_START (2025-01-01).
+
+    Carries every milestone date/attendance so Simple View can render the source
+    log and Long View can group the same rows by event-month."""
+    print(f"\n[Raw Deals] Fetching BD pipeline deals (contact-create cohort since {LONG_VIEW_START})…")
+
+    filters = [{"propertyName": "pipeline", "operator": "EQ", "value": BD_PIPELINE_ID}]
+    props = [
+        "dealname", "dealstage", "lead_source", "amount", "createdate", "closedate",
+        "discovery_call_date",    "discovery_call_attendance",
+        "alignment_call_date",    "alignment_call_attendance",
+        "candidate_discovery_date", "candidate_discovery",
+        "pandadoc_sent", "pandadoc_signed",
+        "paid_recruitment_date",  "paid_recruitment", "paid_recruitment_fee",
+        "paid_first_invoice",
+        f"hs_v2_date_entered_{H_AND_R_STAGE_ID}",
+    ]
+    deals = search_all_deals(filters, props)
+    print(f"  BD pipeline deals (all-time): {len(deals)}")
+
+    deal_ids         = [d["id"] for d in deals]
+    deal_to_contacts = _batch_read_deal_contacts(deal_ids)
+    all_contact_ids  = list({cid for cids in deal_to_contacts.values() for cid in cids})
+    contact_props    = _batch_read_contacts(all_contact_ids,
+                                            [PROP_LEAD_CATEGORY, "createdate"])
+
+    rows = []
+    for d in deals:
+        did = d["id"]
+        p   = d.get("properties", {})
+
+        # First qualified contact for this deal.
+        contact_created, contact_id = "", None
+        for cid in deal_to_contacts.get(did, []):
+            cp = contact_props.get(cid, {})
+            lead_cat = cp.get(PROP_LEAD_CATEGORY) or ""
+            cdate    = (cp.get("createdate") or "")[:10]
+            if OA_BD_VALUE in lead_cat and cdate >= LONG_VIEW_START:
+                contact_created, contact_id = cdate, cid
+                break
+        if not contact_created:
+            continue
+
+        # H&R entered date — datetime so trim to date.
+        hr_dt_raw = p.get(f"hs_v2_date_entered_{H_AND_R_STAGE_ID}") or ""
+        hr_entered = hr_dt_raw[:10] if hr_dt_raw else ""
+
+        stage_id    = p.get("dealstage", "")
+        stage_label = STAGE_LABELS.get(stage_id, stage_id)
+
+        dc_raw = p.get("discovery_call_attendance", "") or ""
+        ac_raw = p.get("alignment_call_attendance", "") or ""
+        cd_raw = p.get("candidate_discovery", "") or ""
+
+        rows.append({
+            "id":             did,
+            "contactId":      contact_id,
+            "dealName":       p.get("dealname", "Unknown"),
+            "contactCreated": contact_created,
+            "stage":          stage_label,
+            "stageId":        stage_id,
+            "leadSource":     p.get("lead_source", "") or "",
+            "dcDate":         (p.get("discovery_call_date") or "")[:10],
+            "dcAttendance":   DC_ATTENDANCE_LABELS.get(dc_raw, dc_raw),
+            "dcAttendanceRaw": dc_raw,
+            "acDate":         (p.get("alignment_call_date") or "")[:10],
+            "acAttendance":   AC_ATTENDANCE_LABELS.get(ac_raw, ac_raw),
+            "acAttendanceRaw": ac_raw,
+            "cdDate":         (p.get("candidate_discovery_date") or "")[:10],
+            "cdAttendance":   CD_ATTENDANCE_LABELS.get(cd_raw, cd_raw),
+            "cdAttendanceRaw": cd_raw,
+            "hrEntered":      hr_entered,
+            "saSent":         (p.get("pandadoc_sent")   or "")[:10],
+            "saSigned":       (p.get("pandadoc_signed") or "")[:10],
+            "paidDate":       (p.get("paid_recruitment_date") or "")[:10],
+            "paidFee":        p.get("paid_recruitment_fee", "") or "",
+            "paidInvoice":    (p.get("paid_first_invoice") or "")[:10],
+            "closeDate":      (p.get("closedate") or "")[:10],
+            "dealCreated":    (p.get("createdate") or "")[:10],
+            "amount":         p.get("amount", "") or "",
+        })
+
+    # Sort newest first.
+    rows.sort(key=lambda r: r["contactCreated"], reverse=True)
+    print(f"  Raw Deals rows (qualified): {len(rows)}")
+    return rows
+
+def fetch_long_view_funnel_matrix(raw_deals_rows):
+    """Event-month funnel matrix (Arnold's Long View approach).
+
+    One row per calendar month from LONG_VIEW_START → today. Each event is
+    counted in the month the milestone fired, independent of when the deal/
+    contact was created. Lets the dashboard show 'how many DCs happened in
+    May 2026' rather than 'how many May-cohort leads had a DC.'
+
+    Stages: Raw Leads → DC Sched → DC Attended → AC Sched → AC Attended →
+            CD Sched → CD Attended → H&R Entered → Paid RF → Closed Won
+
+    Each entry also exposes the underlying deal rows so the UI can expand a
+    month and inspect every event."""
+    print("\n[Funnel] Building event-month funnel matrix…")
+    mo_names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    now      = datetime.now(MANILA_TZ)
+
+    # Bucket raw_deals_rows by event month for each milestone.
+    dc_sched     = defaultdict(list)
+    dc_attended  = defaultdict(list)
+    ac_sched     = defaultdict(list)
+    ac_attended  = defaultdict(list)
+    cd_sched     = defaultdict(list)
+    cd_attended  = defaultdict(list)
+    hr_entered   = defaultdict(list)
+    paid         = defaultdict(list)
+    closed_won   = defaultdict(list)
+
+    for r in raw_deals_rows:
+        if r["dcDate"]:
+            k = r["dcDate"][:7]; dc_sched[k].append(r)
+            if r.get("dcAttendanceRaw") in DC_ATTENDED_INTERNAL:
+                dc_attended[k].append(r)
+        if r["acDate"]:
+            k = r["acDate"][:7]; ac_sched[k].append(r)
+            if r.get("acAttendanceRaw") in AC_ATTENDED_INTERNAL:
+                ac_attended[k].append(r)
+        if r["cdDate"]:
+            k = r["cdDate"][:7]; cd_sched[k].append(r)
+            if r.get("cdAttendanceRaw") in CD_ATTENDED_INTERNAL:
+                cd_attended[k].append(r)
+        if r["hrEntered"]:
+            hr_entered[r["hrEntered"][:7]].append(r)
+        if r["paidDate"]:
+            paid[r["paidDate"][:7]].append(r)
+        if r["closeDate"] and r["stageId"] == CLOSED_WON_ID:
+            closed_won[r["closeDate"][:7]].append(r)
+
+    # Build months from LONG_VIEW_START to now.
+    start_y, start_m = int(LONG_VIEW_START[:4]), int(LONG_VIEW_START[5:7])
+    months = []
+    y, m = start_y, start_m
+    while (y, m) <= (now.year, now.month):
+        month_start = datetime(y, m, 1, 0, 0, 0, tzinfo=MANILA_TZ)
+        if m == 12:
+            month_end = datetime(y + 1, 1, 1, tzinfo=MANILA_TZ) - timedelta(seconds=1)
+        else:
+            month_end = datetime(y, m + 1, 1, tzinfo=MANILA_TZ) - timedelta(seconds=1)
+        partial = (y == now.year and m == now.month)
+        if partial:
+            month_end = now.replace(hour=23, minute=59, second=59, microsecond=0)
+        months.append((y, m, month_start, month_end, partial))
+        m += 1
+        if m == 13:
+            m = 1; y += 1
+
+    # For each month, also fetch Raw Leads count via contact search.
+    results = []
+    for y, m, start_dt, end_dt, partial in months:
+        key   = f"{y}-{m:02d}"
+        label = f"{mo_names[m-1]} {y}"
+        print(f"    {label}…", end=" ", flush=True)
+
+        date_filters = [
+            {"propertyName": "createdate", "operator": "GTE", "value": to_iso(start_dt)},
+            {"propertyName": "createdate", "operator": "LTE", "value": to_iso(end_dt)},
+        ]
+        try:
+            contacts = search_contacts_by_categories(list(OA_BD_VALUES), date_filters, [PROP_LEAD_CATEGORY])
+            raw_leads = len(contacts)
+        except Exception as e:
+            print(f"[raw-leads err: {e}]", end=" ", flush=True)
+            raw_leads = None
+
+        dc_s   = len(dc_sched.get(key, []));      dc_a = len(dc_attended.get(key, []))
+        ac_s   = len(ac_sched.get(key, []));      ac_a = len(ac_attended.get(key, []))
+        cd_s   = len(cd_sched.get(key, []));      cd_a = len(cd_attended.get(key, []))
+        hr_n   = len(hr_entered.get(key, []))
+        paid_n = len(paid.get(key, []))
+        cw_n   = len(closed_won.get(key, []))
+
+        def _pct(num, den): return round(num / den * 100, 1) if den else None
+
+        results.append({
+            "key":            key,
+            "label":          label,
+            "year":           y,
+            "month":          m,
+            "partial":        partial,
+            "rawLeads":       raw_leads,
+            "dcSched":        dc_s,
+            "dcAttended":     dc_a,
+            "acSched":        ac_s,
+            "acAttended":     ac_a,
+            "cdSched":        cd_s,
+            "cdAttended":     cd_a,
+            "hrEntered":      hr_n,
+            "paid":           paid_n,
+            "closedWon":      cw_n,
+            # Show-up rates (attended / scheduled within stage)
+            "dcShowUpPct":    _pct(dc_a, dc_s),
+            "acShowUpPct":    _pct(ac_a, ac_s),
+            "cdShowUpPct":    _pct(cd_a, cd_s),
+            # Progression % attended → next-stage scheduled in same month
+            "dcToAcPct":      _pct(ac_s, dc_a),
+            "acToCdPct":      _pct(cd_s, ac_a),
+            "cdToHrPct":      _pct(hr_n, cd_a),
+            "hrToPaidPct":    _pct(paid_n, hr_n),
+            # Drill-down deal lists per stage
+            "dcSchedDeals":     dc_sched.get(key, []),
+            "dcAttendedDeals":  dc_attended.get(key, []),
+            "acSchedDeals":     ac_sched.get(key, []),
+            "acAttendedDeals":  ac_attended.get(key, []),
+            "cdSchedDeals":     cd_sched.get(key, []),
+            "cdAttendedDeals":  cd_attended.get(key, []),
+            "hrEnteredDeals":   hr_entered.get(key, []),
+            "paidDeals":        paid.get(key, []),
+            "closedWonDeals":   closed_won.get(key, []),
+        })
+        print(f"leads={raw_leads} DC={dc_a}/{dc_s} AC={ac_a}/{ac_s} CD={cd_a}/{cd_s} H&R={hr_n} Paid={paid_n} Won={cw_n}"
+              + (" (partial)" if partial else ""))
+
+    print(f"  Funnel matrix: {len(results)} months built")
+    return results
+
 def fetch_long_view_monthly(paid_deals_rows, dc_contacts_by_month):
     """Build month-by-month cohort from LONG_VIEW_START to today.
 
@@ -1134,7 +1389,7 @@ def fetch_long_view_monthly(paid_deals_rows, dc_contacts_by_month):
 
 # ── HTML PATCH ────────────────────────────────────────────────────────────────
 
-def update_html(week_num, week_data, paid_deals_data, monthly_data, today, long_view=None):
+def update_html(week_num, week_data, paid_deals_data, monthly_data, today, long_view=None, raw_deals=None):
     print(f"  Patching {HTML_FILE}…")
     with open(HTML_FILE, "r", encoding="utf-8") as f:
         html = f.read()
@@ -1161,6 +1416,10 @@ def update_html(week_num, week_data, paid_deals_data, monthly_data, today, long_
     # 6. Overwrite Long View analysis (if provided)
     if long_view is not None:
         report["longView"] = long_view
+
+    # 7. Raw Deals table (powers Simple View)
+    if raw_deals is not None:
+        report["rawDeals"] = raw_deals
 
     new_json = json.dumps(report, indent=2, ensure_ascii=False, default=str)
     new_tag  = f'<script id="report-data" type="application/json">\n{new_json}\n</script>'
@@ -1532,8 +1791,15 @@ def main():
     monthly_data = fetch_monthly_contacts(num_months=6)
     print(f"  Monthly data: {len(monthly_data)} months fetched")
 
-    # Long View analysis (DC -> Paid conversion time, since 2025-01-01)
+    # Long View analysis (Contact -> Paid conversion time, since 2025-01-01)
     long_view = fetch_long_view_analysis()
+
+    # Raw Deals table (Simple View source) — one row per BD-pipeline deal
+    raw_deals = fetch_raw_deals_table()
+
+    # Event-month funnel matrix (Long View per Arnold's spec) — reuses raw_deals
+    funnel_matrix = fetch_long_view_funnel_matrix(raw_deals)
+    long_view["funnelMatrix"] = funnel_matrix
 
     # Build week object
     valid_total = stats["valid_strict"] + stats["valid_ni"]
@@ -1580,7 +1846,7 @@ def main():
 
     # Patch HTML
     print("\n[Patching HTML]")
-    update_html(week_num, week_data, paid_deals, monthly_data, today, long_view)
+    update_html(week_num, week_data, paid_deals, monthly_data, today, long_view, raw_deals)
 
     print(f"\nDone - Week {week_num} ({dates_label}) committed to HTML.")
     print(f"  Next update: next Tuesday\n")
