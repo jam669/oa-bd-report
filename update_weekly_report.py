@@ -40,6 +40,9 @@ MANILA_TZ      = timezone(timedelta(hours=8))
 PAID_CYCLES = [
     {"name": "1st Cycle", "start": "2026-03-15", "end": "2026-04-14"},
     {"name": "2nd Cycle", "start": "2026-04-15", "end": "2026-05-31"},
+    {"name": "3rd Cycle", "start": "2026-06-01", "end": "2026-06-30"},
+    # Going forward each cycle = 1st of month → last day of month (30 or 31).
+    # Add new entries here when a new month begins.
 ]
 
 HTML_FILE      = os.path.join(os.path.dirname(__file__), "bd-weekly-report.html")
