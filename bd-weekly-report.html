@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="data-last-updated" content="2026-05-27" />
-  <meta name="data-cycle" content="Tuesday-Monday" />
+  <meta name="data-cycle" content="Wednesday-Tuesday" />
   <title>OA BD Weekly Report</title>
   <script>
     /* Password gate — runs before anything else renders */
@@ -99304,5 +99304,65 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 </div><!-- /oa-main-wrap -->
+
+<!-- Auto-derive week labels from <meta name="data-last-updated"> -->
+<!-- Cycle: Wednesday–Tuesday. lastUpdated = the Wednesday after the cycle closes. -->
+<script>
+(function() {
+  'use strict';
+  document.addEventListener('DOMContentLoaded', function() {
+    // 1. Read lastUpdated from meta
+    var meta = document.querySelector('meta[name="data-last-updated"]');
+    if (!meta || !meta.content) return;
+    var lastUpdated = new Date(meta.content + 'T00:00:00');
+    if (isNaN(lastUpdated.getTime())) return;
+
+    // 2. Compute cycle anchors
+    var currentEnd   = new Date(lastUpdated); currentEnd.setDate(currentEnd.getDate() - 1);
+    var currentStart = new Date(lastUpdated); currentStart.setDate(currentStart.getDate() - 7);
+    var prevEnd      = new Date(currentStart); prevEnd.setDate(prevEnd.getDate() - 1);
+    var prevStart    = new Date(currentStart); prevStart.setDate(prevStart.getDate() - 7);
+    var nextUpdate   = new Date(lastUpdated); nextUpdate.setDate(nextUpdate.getDate() + 7);
+
+    // 3. ISO week helper
+    function isoWeek(date) {
+      var d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+      var day = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - day);
+      var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    }
+
+    // 4. Formatters
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    function fmtRange(a, b) {
+      if (a.getMonth() === b.getMonth())
+        return months[a.getMonth()] + ' ' + a.getDate() + '–' + b.getDate();
+      return months[a.getMonth()] + ' ' + a.getDate() + '–' + months[b.getMonth()] + ' ' + b.getDate();
+    }
+    function fmtLong(d) { return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear(); }
+
+    // 5. Build labels
+    var currentLabel = 'W' + isoWeek(currentStart);
+    var prevLabel    = 'W' + isoWeek(prevStart);
+    var currentRange = fmtRange(currentStart, currentEnd);
+    var prevRange    = fmtRange(prevStart, prevEnd);
+
+    // 6. Apply to all known fallback elements
+    function setText(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
+    function setHTML(id, val) { var el = document.getElementById(id); if (el) el.innerHTML = val; }
+
+    setText('dc-week-badge',      currentLabel);
+    setText('ac-week-badge',      currentLabel);
+    setText('sa-week-badge',      currentLabel);
+    setText('deposit-week-badge', currentLabel);
+    setText('wow-badge',          prevLabel + ' vs ' + currentLabel);
+    setHTML('wow-th-prev',        prevLabel + ' (' + prevRange + ')');
+    setHTML('wow-th-curr',        currentLabel + ' (' + currentRange + ')');
+    setText('nextUpdateLabel',    'Next update: ' + fmtLong(nextUpdate));
+  });
+})();
+</script>
+
 </body>
 </html>
