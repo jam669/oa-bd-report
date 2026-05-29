@@ -99451,12 +99451,17 @@ document.addEventListener('DOMContentLoaded', function() {
     var lastUpdated = new Date(meta.content + 'T00:00:00');
     if (isNaN(lastUpdated.getTime())) return;
 
-    // 2. Compute cycle anchors
-    var currentEnd   = new Date(lastUpdated); currentEnd.setDate(currentEnd.getDate() - 1);
-    var currentStart = new Date(lastUpdated); currentStart.setDate(currentStart.getDate() - 7);
-    var prevEnd      = new Date(currentStart); prevEnd.setDate(prevEnd.getDate() - 1);
-    var prevStart    = new Date(currentStart); prevStart.setDate(prevStart.getDate() - 7);
-    var nextUpdate   = new Date(lastUpdated); nextUpdate.setDate(nextUpdate.getDate() + 7);
+    // 2. Walk back from lastUpdated to the most recent Tuesday (= cycle end).
+    //    Handles cron-fired runs (Tuesday) AND ad-hoc manual runs on any day.
+    var cycleEnd = new Date(lastUpdated);
+    while (cycleEnd.getDay() !== 2) { cycleEnd.setDate(cycleEnd.getDate() - 1); }
+
+    //    Cycle anchors (Wednesday–Tuesday)
+    var currentEnd   = cycleEnd;
+    var currentStart = new Date(cycleEnd); currentStart.setDate(currentStart.getDate() - 6);
+    var prevEnd      = new Date(cycleEnd); prevEnd.setDate(prevEnd.getDate() - 7);
+    var prevStart    = new Date(cycleEnd); prevStart.setDate(prevStart.getDate() - 13);
+    var nextUpdate   = new Date(cycleEnd); nextUpdate.setDate(nextUpdate.getDate() + 7);
 
     // 3. ISO week helper
     function isoWeek(date) {
