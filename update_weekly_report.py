@@ -1190,6 +1190,7 @@ def fetch_long_view_funnel_matrix(raw_deals_rows):
     hr_entered   = defaultdict(list)
     paid         = defaultdict(list)
     closed_won   = defaultdict(list)
+    sa_signed    = defaultdict(list)
 
     for r in raw_deals_rows:
         if r["dcDate"]:
@@ -1210,6 +1211,8 @@ def fetch_long_view_funnel_matrix(raw_deals_rows):
             paid[r["paidDate"][:7]].append(r)
         if r["closeDate"] and r["stageId"] == CLOSED_WON_ID:
             closed_won[r["closeDate"][:7]].append(r)
+        if r["saSigned"]:
+            sa_signed[r["saSigned"][:7]].append(r)
 
     # Build months from LONG_VIEW_START to now.
     start_y, start_m = int(LONG_VIEW_START[:4]), int(LONG_VIEW_START[5:7])
@@ -1253,6 +1256,7 @@ def fetch_long_view_funnel_matrix(raw_deals_rows):
         hr_n   = len(hr_entered.get(key, []))
         paid_n = len(paid.get(key, []))
         cw_n   = len(closed_won.get(key, []))
+        sa_n   = len(sa_signed.get(key, []))
 
         def _pct(num, den): return round(num / den * 100, 1) if den else None
 
@@ -1272,6 +1276,7 @@ def fetch_long_view_funnel_matrix(raw_deals_rows):
             "hrEntered":      hr_n,
             "paid":           paid_n,
             "closedWon":      cw_n,
+            "saSigned":       sa_n,
             # Show-up rates (attended / scheduled within stage)
             "dcShowUpPct":    _pct(dc_a, dc_s),
             "acShowUpPct":    _pct(ac_a, ac_s),
@@ -1291,6 +1296,7 @@ def fetch_long_view_funnel_matrix(raw_deals_rows):
             "hrEnteredDeals":   hr_entered.get(key, []),
             "paidDeals":        paid.get(key, []),
             "closedWonDeals":   closed_won.get(key, []),
+            "saSignedDeals":    sa_signed.get(key, []),
         })
         print(f"leads={raw_leads} DC={dc_a}/{dc_s} AC={ac_a}/{ac_s} CD={cd_a}/{cd_s} H&R={hr_n} Paid={paid_n} Won={cw_n}"
               + (" (partial)" if partial else ""))
