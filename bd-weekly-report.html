@@ -1367,60 +1367,63 @@
 
     <!-- ===== PAGE: LONG VIEW ===== -->
     <div class="page" id="page-longview">
-      <div class="section-title">Long View &mdash; Contact to Deposit Conversion Time</div>
+      <div class="section-title">Long View &mdash; Cohort Progression</div>
       <div class="section-sub">
-        OA Business Development &middot; Cohort: contacts created from
-        <span id="lv-period-start">2025-01-01</span> to
-        <span id="lv-period-end">—</span>
-        &middot; Time between Contact Created and Paid Recruitment Date
+        OA Business Development &middot; Cohorts grouped by Contact Created month &middot;
+        Tracks each cohort's progression through DC, AC, CD, H&amp;R and Paid milestones over subsequent months &middot;
+        Updated <span id="lv-period-end">—</span>
       </div>
 
-      <!-- Long View — Event-Month Funnel Matrix (Arnold's approach) -->
-      <div class="table-card" style="margin-bottom:28px">
-        <div class="table-header">
-          <h3>Month-by-Month Funnel</h3>
-          <span class="badge badge-muted">Counts what fired in each calendar month · Jan 2025 → present</span>
+      <!-- Cohort selector + summary header -->
+      <div class="table-card" style="margin-bottom:18px">
+        <div class="table-header" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+          <h3 style="margin:0">Cohort Matrix</h3>
+          <select id="lv-cohort-month" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);outline:none;font-weight:600">
+            <option>Loading…</option>
+          </select>
+          <span id="lv-cohort-summary" style="margin-left:auto;color:var(--muted);font-size:12px"></span>
         </div>
         <div style="overflow-x:auto">
-          <table id="lv-funnel-table" style="font-size:12.5px;min-width:1000px">
-            <thead>
-              <tr>
-                <th rowspan="2" style="vertical-align:bottom">Month</th>
-                <th rowspan="2" style="vertical-align:bottom">Raw Leads</th>
-                <th colspan="3" style="text-align:center;border-bottom:1px solid var(--border)">Discovery Call</th>
-                <th colspan="3" style="text-align:center;border-bottom:1px solid var(--border)">Alignment Call</th>
-                <th colspan="3" style="text-align:center;border-bottom:1px solid var(--border)">Candidate Discovery</th>
-                <th rowspan="2" style="vertical-align:bottom">H&amp;R Entered</th>
-                <th rowspan="2" style="vertical-align:bottom">Paid RF</th>
-                <th rowspan="2" style="vertical-align:bottom">Closed Won</th>
-              </tr>
-              <tr>
-                <th style="font-weight:500;font-size:11px;color:var(--muted)">Sched</th>
-                <th style="font-weight:500;font-size:11px;color:var(--muted)">Att</th>
-                <th style="font-weight:500;font-size:11px;color:var(--muted)">Show-up</th>
-                <th style="font-weight:500;font-size:11px;color:var(--muted)">Sched</th>
-                <th style="font-weight:500;font-size:11px;color:var(--muted)">Att</th>
-                <th style="font-weight:500;font-size:11px;color:var(--muted)">Show-up</th>
-                <th style="font-weight:500;font-size:11px;color:var(--muted)">Sched</th>
-                <th style="font-weight:500;font-size:11px;color:var(--muted)">Att</th>
-                <th style="font-weight:500;font-size:11px;color:var(--muted)">Show-up</th>
-              </tr>
+          <table id="lv-cohort-table" style="font-size:12.5px;min-width:1100px">
+            <thead id="lv-cohort-thead">
+              <tr><th>Loading&hellip;</th></tr>
             </thead>
-            <tbody id="lv-funnel-body">
-              <tr><td colspan="14" style="color:var(--muted)">Loading&hellip;</td></tr>
+            <tbody id="lv-cohort-tbody">
+              <tr><td style="color:var(--muted)">Loading&hellip;</td></tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- Long View — Month drill-down accordion (per-stage deal lists) -->
+      <!-- Cohort deals — collapsible list of all deals in selected cohort -->
       <div class="table-card" style="margin-bottom:28px">
         <div class="table-header">
-          <h3>Drill-Down by Month</h3>
-          <span class="badge badge-muted">Click a month to see the underlying deals per stage</span>
+          <h3 id="lv-cohort-deals-title">Cohort Deals</h3>
+          <span class="badge badge-muted">Every deal whose contact was created in the selected cohort month</span>
         </div>
-        <div id="lv-monthly-accordion" style="display:flex;flex-direction:column;gap:8px;padding:8px">
-          <div style="color:var(--muted);padding:12px">Loading&hellip;</div>
+        <div style="max-height:60vh;overflow:auto">
+          <table style="font-size:12px">
+            <thead style="position:sticky;top:0;background:var(--surface);z-index:2">
+              <tr>
+                <th>Company / Deal</th>
+                <th>Lead Source</th>
+                <th>Contact Created</th>
+                <th>Stage</th>
+                <th>DC Date</th>
+                <th>DC Att</th>
+                <th>AC Date</th>
+                <th>AC Att</th>
+                <th>CD Date</th>
+                <th>H&amp;R</th>
+                <th>Paid RF</th>
+                <th>Amount</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="lv-cohort-deals-body">
+              <tr><td colspan="13" style="color:var(--muted)">Loading&hellip;</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -102339,41 +102342,248 @@ function _lvFmtNum(n) {
   return n == null ? '<span style="color:var(--muted)">—</span>' : '<strong>' + n.toLocaleString() + '</strong>';
 }
 
-function renderLongViewFunnel() {
-  var body = document.getElementById('lv-funnel-body');
-  if (!body) return;
-  var rows = (REPORT.longView && REPORT.longView.funnelMatrix) || [];
-  if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="14" style="color:var(--muted)">No funnel data available yet.</td></tr>';
+/* ══════════════════════════════════════════════════════════════════════════
+   LONG VIEW — COHORT MATRIX (longitudinal progression per contact-create month)
+   "What happened over time to leads that were created in this month?"
+   ══════════════════════════════════════════════════════════════════════════ */
+
+var _MO_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function _lvMonthLabel(y, m) { return _MO_NAMES[m - 1] + ' ' + y; }
+
+function computeLongViewCohort(rawDeals, funnelMatrix, cohortKey) {
+  /* Cohort lead count = BD-Lead contacts created in cohortKey (sourced from funnelMatrix). */
+  var fmEntry    = (funnelMatrix || []).filter(function(m){ return m.key === cohortKey; })[0];
+  var totalLeads = fmEntry ? (fmEntry.rawLeads || 0) : 0;
+
+  /* Deals whose CONTACT was created in cohort month — the cohort to follow. */
+  var cohortDeals = (rawDeals || []).filter(function(d){
+    return d.contactCreated && d.contactCreated.slice(0, 7) === cohortKey;
+  });
+
+  /* Build the column months: cohort month → current month (or further if events exist). */
+  var startY = parseInt(cohortKey.slice(0, 4), 10);
+  var startM = parseInt(cohortKey.slice(5, 7), 10);
+  var maxKey = cohortKey;
+  /* Stretch maxKey to include any post-cohort activity month. */
+  function bumpMax(k){ if (k && k > maxKey) maxKey = k; }
+  cohortDeals.forEach(function(d){
+    if (d.dcDate)     bumpMax(d.dcDate.slice(0, 7));
+    if (d.acDate)     bumpMax(d.acDate.slice(0, 7));
+    if (d.cdDate)     bumpMax(d.cdDate.slice(0, 7));
+    if (d.hrEntered)  bumpMax(d.hrEntered.slice(0, 7));
+    if (d.paidDate)   bumpMax(d.paidDate.slice(0, 7));
+    if (d.closeDate)  bumpMax(d.closeDate.slice(0, 7));
+  });
+  /* Always include the present month at minimum. */
+  var now    = new Date();
+  var nowKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  if (nowKey > maxKey) maxKey = nowKey;
+
+  var months = [];
+  var y = startY, m = startM;
+  while (true) {
+    var k = y + '-' + String(m).padStart(2, '0');
+    months.push({ y: y, m: m, key: k, label: _lvMonthLabel(y, m) });
+    if (k >= maxKey) break;
+    m++; if (m === 13) { m = 1; y++; }
+    if (months.length > 60) break;  /* safety cap */
+  }
+
+  /* Helper buckets — { perMonth: {key: count}, total: N, deals: [] } */
+  function bk() { return { perMonth: {}, total: 0, deals: [] }; }
+  function add(b, key, deal) {
+    if (key) b.perMonth[key] = (b.perMonth[key] || 0) + 1;
+    b.total++;
+    b.deals.push(deal);
+  }
+
+  var dcSched = bk(), dcComp = bk();
+  var acSched = bk(), acComp = bk();
+  var cdSched = bk(), cdComp = bk();
+  var acSkip  = bk(), cdSkip  = bk();
+  var hrAll   = bk();
+  var acSkipHR = bk(), cdSkipHR = bk();
+  var closedWon = bk();
+
+  cohortDeals.forEach(function(d){
+    if (d.dcDate) {
+      var k = d.dcDate.slice(0, 7);
+      add(dcSched, k, d);
+      if (d.dcAttendanceRaw === 'Attended' || d.dcAttendanceRaw === 'DC Unqualified') add(dcComp, k, d);
+    }
+    if (d.acDate) {
+      var k = d.acDate.slice(0, 7);
+      add(acSched, k, d);
+      if (d.acAttendanceRaw === 'Prospect attended' || d.acAttendanceRaw === 'AC Awaiting REC Payment') add(acComp, k, d);
+    }
+    if (d.cdDate) {
+      var k = d.cdDate.slice(0, 7);
+      add(cdSched, k, d);
+      if (d.cdAttendanceRaw === 'CD No Attended') add(cdComp, k, d);
+    }
+    /* AC Skip — bucket by hrEntered if present, else acDate, else cohort month */
+    if (d.acAttendanceRaw === 'AC Skip') {
+      var k = (d.hrEntered || d.acDate || '').slice(0, 7) || cohortKey;
+      add(acSkip, k, d);
+    }
+    if (d.cdAttendanceRaw === 'CD Skip') {
+      var k = (d.hrEntered || d.cdDate || '').slice(0, 7) || cohortKey;
+      add(cdSkip, k, d);
+    }
+    if (d.hrEntered) {
+      var k = d.hrEntered.slice(0, 7);
+      add(hrAll, k, d);
+      if (d.acAttendanceRaw === 'AC Skip') add(acSkipHR, k, d);
+      if (d.cdAttendanceRaw === 'CD Skip') add(cdSkipHR, k, d);
+    }
+    if (d.closeDate && d.stageId === SV_FUNNEL_STAGE_CLOSED_WON) {
+      add(closedWon, d.closeDate.slice(0, 7), d);
+    }
+  });
+
+  /* Build row definitions with conversion-rate denominators. */
+  var rows = [
+    { label: 'Valid Leads',           bucket: { perMonth: {}, total: totalLeads, deals: [] }, totalOnly: true, dealsKey: null },
+    { label: 'DC Scheduled',          bucket: dcSched,  dealsKey: 'dcSched' },
+    { label: 'DC Completed',          bucket: dcComp,   dealsKey: 'dcComp',
+      pct: { num: dcComp.total,  den: dcSched.total, label: 'DC show up rate' } },
+    { label: 'AC Scheduled',          bucket: acSched,  dealsKey: 'acSched',
+      pct: { num: acSched.total, den: dcComp.total,  label: 'DC → AC conversion' } },
+    { label: 'AC Completed',          bucket: acComp,   dealsKey: 'acComp',
+      pct: { num: acComp.total,  den: acSched.total, label: 'AC show up rate' } },
+    { label: 'CD Scheduled',          bucket: cdSched,  dealsKey: 'cdSched',
+      pct: { num: cdSched.total, den: acComp.total,  label: 'AC → CD conversion' } },
+    { label: 'CD Completed',          bucket: cdComp,   dealsKey: 'cdComp',
+      pct: { num: cdComp.total,  den: cdSched.total, label: 'CD show up rate' } },
+    { label: 'AC Skip',               bucket: acSkip,   dealsKey: 'acSkip',
+      pct: { num: acSkip.total,  den: dcComp.total,  label: 'DC → AC Skip conversion' } },
+    { label: 'CD Skip',               bucket: cdSkip,   dealsKey: 'cdSkip',
+      pct: { num: cdSkip.total,  den: acComp.total,  label: 'AC → CD Skip conversion' } },
+    { label: 'Hiring and Recruiting', bucket: hrAll,    dealsKey: 'hrAll',
+      pct: { num: hrAll.total,   den: cdComp.total,  label: 'CD → H&R conversion' } },
+    { label: 'AC Skip H&R',           bucket: acSkipHR, dealsKey: 'acSkipHR',
+      pct: { num: acSkipHR.total, den: acSkip.total, label: 'AC Skip → H&R' } },
+    { label: 'CD Skip H&R',           bucket: cdSkipHR, dealsKey: 'cdSkipHR',
+      pct: { num: cdSkipHR.total, den: cdSkip.total, label: 'CD Skip → H&R' } },
+    { label: 'Closed Won',            bucket: closedWon, dealsKey: 'closedWon',
+      pct: { num: closedWon.total, den: totalLeads,   label: 'Lead → Closed Won' } },
+  ];
+
+  return {
+    cohortKey:    cohortKey,
+    cohortLabel:  _lvMonthLabel(startY, startM),
+    totalLeads:   totalLeads,
+    dealsCreated: cohortDeals.length,
+    months:       months,
+    rows:         rows,
+    cohortDeals:  cohortDeals,
+  };
+}
+
+function renderLongViewCohort() {
+  /* Selector — populate from funnelMatrix (covers Jan 2025 → present). */
+  var sel = document.getElementById('lv-cohort-month');
+  var fm  = (REPORT.longView && REPORT.longView.funnelMatrix) || [];
+  if (!sel) return;
+  if (!fm.length) {
+    sel.innerHTML = '<option>No data</option>';
+    setHTML('lv-cohort-tbody', '<tr><td style="color:var(--muted)">No cohort data available.</td></tr>');
     return;
   }
-  // Newest first
-  var sorted = rows.slice().reverse();
-  var html = '';
-  sorted.forEach(function(m){
-    var partialBadge = m.partial ? ' <span style="color:var(--muted);font-size:11px;font-weight:400">(partial)</span>' : '';
-    html += '<tr>';
-    html += '<td style="font-weight:700">' + _rdEsc(m.label) + partialBadge + '</td>';
-    html += '<td style="font-weight:700;color:#fff">' + _lvFmtNum(m.rawLeads) + '</td>';
-    // DC
-    html += '<td>' + _lvFmtNum(m.dcSched) + '</td>';
-    html += '<td style="color:#14b8a6">' + _lvFmtNum(m.dcAttended) + '</td>';
-    html += '<td style="color:var(--muted);font-size:11px">' + (m.dcShowUpPct == null ? '—' : m.dcShowUpPct + '%') + '</td>';
-    // AC
-    html += '<td>' + _lvFmtNum(m.acSched) + '</td>';
-    html += '<td style="color:#8b5cf6">' + _lvFmtNum(m.acAttended) + '</td>';
-    html += '<td style="color:var(--muted);font-size:11px">' + (m.acShowUpPct == null ? '—' : m.acShowUpPct + '%') + '</td>';
-    // CD
-    html += '<td>' + _lvFmtNum(m.cdSched) + '</td>';
-    html += '<td style="color:var(--cyan)">' + _lvFmtNum(m.cdAttended) + '</td>';
-    html += '<td style="color:var(--muted);font-size:11px">' + (m.cdShowUpPct == null ? '—' : m.cdShowUpPct + '%') + '</td>';
-    // H&R, Paid, Won
-    html += '<td style="color:var(--orange)">' + _lvFmtNum(m.hrEntered) + '</td>';
-    html += '<td style="color:var(--yellow)">' + _lvFmtNum(m.paid) + '</td>';
-    html += '<td style="color:var(--green)">' + _lvFmtNum(m.closedWon) + '</td>';
-    html += '</tr>';
+  var sortedDesc = fm.slice().reverse();
+  /* Default to the most recent month with any DC scheduled (avoids empty default). */
+  var defaultIdx = 0;
+  for (var i = 0; i < sortedDesc.length; i++) {
+    if ((sortedDesc[i].dcSched || 0) > 0 || (sortedDesc[i].rawLeads || 0) > 0) { defaultIdx = i; break; }
+  }
+  sel.innerHTML = sortedDesc.map(function(m, i){
+    return '<option value="' + _rdEsc(m.key) + '"' + (i === defaultIdx ? ' selected' : '') + '>'
+         + _rdEsc(m.label) + (m.partial ? ' (partial)' : '') + '</option>';
+  }).join('');
+  sel.onchange = function(){ renderLongViewCohortFor(sel.value); };
+  renderLongViewCohortFor(sel.value);
+}
+
+function renderLongViewCohortFor(cohortKey) {
+  var fm = (REPORT.longView && REPORT.longView.funnelMatrix) || [];
+  var c  = computeLongViewCohort(REPORT.rawDeals || [], fm, cohortKey);
+
+  /* Header summary */
+  setHTML('lv-cohort-summary',
+    '<strong>' + c.totalLeads + '</strong> valid leads · <strong>' + c.dealsCreated + '</strong> deals created · '
+    + 'tracking ' + c.months.length + ' month' + (c.months.length === 1 ? '' : 's'));
+
+  /* Header row */
+  var theadHtml = '<tr><th style="position:sticky;left:0;background:var(--surface);min-width:180px;text-align:left">Metric</th>';
+  c.months.forEach(function(mo){
+    theadHtml += '<th style="min-width:78px;text-align:center;font-weight:600">' + _rdEsc(mo.label) + '</th>';
   });
-  body.innerHTML = html;
+  theadHtml += '<th style="background:var(--surface2);min-width:70px;text-align:center">Total</th>';
+  theadHtml += '<th style="background:var(--surface2);min-width:120px;text-align:center">Percentage</th>';
+  theadHtml += '<th style="min-width:200px;text-align:left;color:var(--muted);font-weight:500">Conversion rate</th></tr>';
+  setHTML('lv-cohort-thead', theadHtml);
+
+  /* Body rows */
+  var bodyHtml = '';
+  c.rows.forEach(function(r, rowIdx){
+    var b = r.bucket;
+    var rowBg = (rowIdx === 0) ? 'background:rgba(229,6,149,0.08);font-weight:700' : '';
+    bodyHtml += '<tr style="' + rowBg + '">';
+    bodyHtml += '<td style="position:sticky;left:0;background:var(--surface);font-weight:600;border-right:1px solid var(--border)">' + _rdEsc(r.label) + '</td>';
+    c.months.forEach(function(mo){
+      var v = r.totalOnly ? '' : (b.perMonth[mo.key] || 0);
+      var color = (v === 0 || v === '') ? 'color:var(--muted)' : 'color:var(--text);font-weight:600';
+      bodyHtml += '<td style="text-align:center;' + color + '">' + (v === '' ? '—' : v) + '</td>';
+    });
+    bodyHtml += '<td style="text-align:center;background:var(--surface2);font-weight:700">' + b.total + '</td>';
+    /* Percentage */
+    var pctCell = '<td style="text-align:center;background:var(--surface2)">';
+    var pctLabel = '<td style="color:var(--muted);font-size:11px">';
+    if (r.pct) {
+      var p = r.pct.den > 0 ? (r.pct.num / r.pct.den * 100) : null;
+      var pStr = p == null ? '—' : p.toFixed(2) + '%';
+      var pBg  = p == null ? '' : 'background:rgba(34,197,94,' + Math.min(0.35, 0.08 + (p / 100) * 0.3) + ');border-radius:6px;padding:2px 8px;display:inline-block';
+      pctCell += '<span style="' + pBg + ';color:var(--green);font-weight:600">' + pStr + '</span>';
+      pctLabel += r.pct.label;
+    } else {
+      pctCell += '<span style="color:var(--muted)">—</span>';
+    }
+    pctCell += '</td>';
+    pctLabel += '</td>';
+    bodyHtml += pctCell + pctLabel;
+    bodyHtml += '</tr>';
+  });
+  setHTML('lv-cohort-tbody', bodyHtml);
+
+  /* Cohort deals listing */
+  setEl('lv-cohort-deals-title', c.cohortLabel + ' Deals');
+  var dealsBody = document.getElementById('lv-cohort-deals-body');
+  if (dealsBody) {
+    if (!c.cohortDeals.length) {
+      dealsBody.innerHTML = '<tr><td colspan="13" style="color:var(--muted)">No deals in this cohort.</td></tr>';
+    } else {
+      var html = '';
+      c.cohortDeals.forEach(function(d){
+        var url = 'https://app.hubspot.com/contacts/44390857/record/0-3/' + d.id;
+        html += '<tr>';
+        html += '<td style="font-weight:600;max-width:260px">' + _rdEsc(d.dealName || '—') + '</td>';
+        html += '<td style="color:var(--muted);font-size:12px">' + _rdEsc(d.leadSource || '—') + '</td>';
+        html += '<td>' + _rdEsc(d.contactCreated || '—') + '</td>';
+        html += '<td><span class="pd-stage-badge pd-stage-default" style="font-size:10.5px">' + _rdEsc(d.stage || '—') + '</span></td>';
+        html += '<td>' + _rdEsc(d.dcDate || '—') + '</td>';
+        html += '<td>' + _rdAttBadge(d.dcAttendance) + '</td>';
+        html += '<td>' + _rdEsc(d.acDate || '—') + '</td>';
+        html += '<td>' + _rdAttBadge(d.acAttendance) + '</td>';
+        html += '<td>' + _rdEsc(d.cdDate || '—') + '</td>';
+        html += '<td>' + _rdEsc(d.hrEntered || '—') + '</td>';
+        html += '<td style="color:var(--yellow);font-weight:600">' + _rdEsc(d.paidDate || '—') + '</td>';
+        html += '<td style="font-weight:600">' + _rdFmtMoney(d.amount) + '</td>';
+        html += '<td><a class="pd-hs-link" href="' + url + '" target="_blank">Open&nbsp;&#8599;</a></td>';
+        html += '</tr>';
+      });
+      dealsBody.innerHTML = html;
+    }
+  }
 }
 
 function toggleLvDrill(key) {
@@ -102408,54 +102618,9 @@ function _lvDrillSection(title, color, deals, dateField) {
   return h;
 }
 
-function renderLongViewMonthly() {
-  var el = document.getElementById('lv-monthly-accordion');
-  if (!el) return;
-  var rows = (REPORT.longView && REPORT.longView.funnelMatrix) || [];
-  if (!rows.length) {
-    el.innerHTML = '<div style="color:var(--muted);padding:12px">No monthly data available yet.</div>';
-    return;
-  }
-  var sorted = rows.slice().reverse();
-  var html = '';
-  sorted.forEach(function(m, i){
-    var key  = String(m.key || ('m'+i)).replace(/[^a-zA-Z0-9_-]/g, '');
-    var open = (i === 0);
-    var icon = open ? '&#9662;' : '&#9656;';
-    var summary =
-        '<span>' + (m.rawLeads == null ? '—' : m.rawLeads.toLocaleString()) + ' leads</span>'
-      + ' · <span style="color:#14b8a6">' + m.dcAttended + ' DC</span>'
-      + ' · <span style="color:#8b5cf6">' + m.acAttended + ' AC</span>'
-      + ' · <span style="color:var(--cyan)">' + m.cdAttended + ' CD</span>'
-      + ' · <span style="color:var(--orange)">' + m.hrEntered + ' H&R</span>'
-      + ' · <span style="color:var(--yellow)">' + m.paid + ' Paid</span>'
-      + ' · <span style="color:var(--green)">' + m.closedWon + ' Won</span>';
-
-    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">';
-    html += '<button type="button" onclick="toggleLvDrill(\'' + key + '\')" '
-         +  'style="width:100%;display:flex;align-items:center;justify-content:space-between;'
-         +  'background:transparent;color:var(--text);border:none;padding:14px 18px;cursor:pointer;font-size:14px;text-align:left">'
-         +  '<span style="display:flex;align-items:center;gap:10px">'
-         +  '<span id="lvd-icon-' + key + '" style="color:var(--accent)">' + icon + '</span>'
-         +  '<strong style="font-size:15px">' + _rdEsc(m.label) + (m.partial ? ' <span style="color:var(--muted);font-size:11px;font-weight:400">(partial)</span>' : '') + '</strong>'
-         +  '</span>'
-         +  '<span style="color:var(--muted);font-size:12px">' + summary + '</span>'
-         +  '</button>';
-    html += '<div id="lvd-body-' + key + '" style="display:' + (open ? 'block' : 'none') + ';padding:0 16px 16px 16px">';
-    html += _lvDrillSection('Discovery Calls — Attended', '#14b8a6', m.dcAttendedDeals, {field:'dcDate', label:'DC Date'});
-    html += _lvDrillSection('Alignment Calls — Attended', '#8b5cf6', m.acAttendedDeals, {field:'acDate', label:'AC Date'});
-    html += _lvDrillSection('Candidate Discovery — Attended', 'var(--cyan)', m.cdAttendedDeals, {field:'cdDate', label:'CD Date'});
-    html += _lvDrillSection('Hiring & Recruiting — Entered', 'var(--orange)', m.hrEnteredDeals, {field:'hrEntered', label:'H&R Date'});
-    html += _lvDrillSection('Paid Recruitment Fee', 'var(--yellow)', m.paidDeals, {field:'paidDate', label:'Paid Date'});
-    html += _lvDrillSection('Closed Won', 'var(--green)', m.closedWonDeals, {field:'closeDate', label:'Close Date'});
-    if (!m.dcAttendedDeals.length && !m.acAttendedDeals.length && !m.cdAttendedDeals.length
-        && !m.hrEnteredDeals.length && !m.paidDeals.length && !m.closedWonDeals.length) {
-      html += '<div style="color:var(--muted);padding:10px 4px;font-size:12.5px">No deal-level events in this month.</div>';
-    }
-    html += '</div></div>';
-  });
-  el.innerHTML = html;
-}
+/* renderLongViewMonthly removed — replaced by the cohort matrix above. The
+   old event-month-funnel UI lives on Simple View as the waterfall. */
+function renderLongViewMonthly() { /* no-op shim — kept so older callers don't error */ }
 
 document.addEventListener('DOMContentLoaded', function() {
   buildCharts();
@@ -102464,7 +102629,7 @@ document.addEventListener('DOMContentLoaded', function() {
   renderMonthly();
   renderRawDeals();
   renderLongView();
-  renderLongViewFunnel();
+  renderLongViewCohort();
 });
 </script>
 
