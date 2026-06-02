@@ -1265,6 +1265,20 @@
         Updated <span id="deals-updated"></span>
       </div>
 
+      <!-- Funnel waterfall — primary view, per selected month -->
+      <div class="table-card" style="margin-bottom:24px">
+        <div class="table-header" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+          <h3 style="margin:0">Funnel Waterfall &mdash; Lead Reconciliation</h3>
+          <select id="sv-funnel-month" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);outline:none;font-weight:600">
+            <option>Loading…</option>
+          </select>
+          <span id="sv-funnel-validation" style="margin-left:auto;font-size:12px"></span>
+        </div>
+        <div id="sv-funnel-body" style="padding:18px">
+          <div style="color:var(--muted)">Loading&hellip;</div>
+        </div>
+      </div>
+
       <!-- Filter bar -->
       <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:18px">
         <input id="rd-search" type="text" placeholder="Search company / lead source…"
@@ -101883,6 +101897,314 @@ function renderRawDeals() {
   _populateRdFilters(REPORT.rawDeals || []);
   renderRawDealsBody();
   renderSvMonthlyBreakdown();
+  renderSvFunnel();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SIMPLE VIEW — FUNNEL WATERFALL (per selected month, every stage reconciles)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+var SV_FUNNEL_STAGE_CLOSED_WON  = '132946334';
+var SV_FUNNEL_STAGE_CLOSED_LOST = '132946335';
+
+function computeSimpleFunnel(rawDeals, monthKey) {
+  /* Filter to deals whose DC date is in monthKey (YYYY-MM). */
+  var inMonth = (rawDeals || []).filter(function(d){
+    return d.dcDate && d.dcDate.slice(0, 7) === monthKey;
+  });
+
+  /* Level 1 — DC Result (every deal in month falls in exactly one of these): */
+  var lvl1_completed = inMonth.filter(function(d){
+    var a = d.dcAttendanceRaw;
+    return a === 'Attended' || a === 'DC Unqualified';   // call happened
+  });
+  var lvl1_noshow    = inMonth.filter(function(d){ return d.dcAttendanceRaw === 'No show'; });
+  var lvl1_scheduled = inMonth.filter(function(d){
+    var a = d.dcAttendanceRaw;
+    return !a || a === 'Yes' || a === 'Rescheduled' || a === 'DC Skip';
+  });
+
+  /* Level 2 — Split of DC Completed (24 = 6 + 1 + 11 + 6): */
+  var dcUnqualifiedDeals = lvl1_completed.filter(function(d){ return d.dcAttendanceRaw === 'DC Unqualified'; });
+  var attendedDeals      = lvl1_completed.filter(function(d){ return d.dcAttendanceRaw === 'Attended'; });
+  var lvl2_acsBooked     = attendedDeals.filter(function(d){ return !!d.acDate; });
+  var lvl2_acsSkip       = attendedDeals.filter(function(d){ return !d.acDate && d.acAttendanceRaw === 'AC Skip'; });
+  var lvl2_acsNotBooked  = attendedDeals.filter(function(d){ return !d.acDate && d.acAttendanceRaw !== 'AC Skip'; });
+
+  /* Level 3 — AC Result (from ACs Booked): */
+  var lvl3_acCompleted = lvl2_acsBooked.filter(function(d){
+    var a = d.acAttendanceRaw;
+    return a === 'Prospect attended' || a === 'AC Awaiting REC Payment';
+  });
+  var lvl3_acNoShow    = lvl2_acsBooked.filter(function(d){ return d.acAttendanceRaw === 'Prospect no show'; });
+  var lvl3_acScheduled = lvl2_acsBooked.filter(function(d){
+    var a = d.acAttendanceRaw;
+    return !a || a === 'Scheduled' || a === 'Rescheduled';
+  });
+
+  /* Level 4 — CDs Booked split (from AC Completed): */
+  var lvl4_cdsBooked     = lvl3_acCompleted.filter(function(d){ return !!d.cdDate; });
+  var lvl4_cdsSkip       = lvl3_acCompleted.filter(function(d){ return !d.cdDate && d.cdAttendanceRaw === 'CD Skip'; });
+  var lvl4_closedLostAC  = lvl3_acCompleted.filter(function(d){ return !d.cdDate && d.cdAttendanceRaw !== 'CD Skip' && d.stageId === SV_FUNNEL_STAGE_CLOSED_LOST; });
+  var lvl4_cdsNotBooked  = lvl3_acCompleted.filter(function(d){ return !d.cdDate && d.cdAttendanceRaw !== 'CD Skip' && d.stageId !== SV_FUNNEL_STAGE_CLOSED_LOST; });
+
+  /* Level 5 — CD Result (from CDs Booked): */
+  var lvl5_cdCompleted = lvl4_cdsBooked.filter(function(d){ return d.cdAttendanceRaw === 'CD No Attended'; });
+  var lvl5_cdNoShow    = lvl4_cdsBooked.filter(function(d){ return d.cdAttendanceRaw === 'CD No Show'; });
+  var lvl5_cdScheduled = lvl4_cdsBooked.filter(function(d){
+    var a = d.cdAttendanceRaw;
+    return (!a || a === 'CD Scheduled') && d.stageId !== SV_FUNNEL_STAGE_CLOSED_LOST;
+  });
+  var lvl5_closedLostCD = lvl4_cdsBooked.filter(function(d){ return d.stageId === SV_FUNNEL_STAGE_CLOSED_LOST; });
+
+  /* H&R movement + final outcomes — based on the entire in-month set. */
+  var acsSkipHR  = lvl2_acsSkip.filter(function(d){ return !!d.hrEntered; });
+  var cdsSkipHR  = lvl4_cdsSkip.filter(function(d){ return !!d.hrEntered; });
+  var paidRF     = inMonth.filter(function(d){ return !!d.paidDate; });
+  var closedWon  = inMonth.filter(function(d){ return d.stageId === SV_FUNNEL_STAGE_CLOSED_WON; });
+
+  return {
+    dcBooked: inMonth.length,
+    dcCompleted:    lvl1_completed.length,
+    dcNoShow:       lvl1_noshow.length,
+    dcScheduled:    lvl1_scheduled.length,
+    dcUnqualified:  dcUnqualifiedDeals.length,
+    acsBooked:      lvl2_acsBooked.length,
+    acsSkip:        lvl2_acsSkip.length,
+    acsNotBooked:   lvl2_acsNotBooked.length,
+    acCompleted:    lvl3_acCompleted.length,
+    acNoShow:       lvl3_acNoShow.length,
+    acScheduled:    lvl3_acScheduled.length,
+    cdsBooked:      lvl4_cdsBooked.length,
+    cdsSkip:        lvl4_cdsSkip.length,
+    cdsNotBooked:   lvl4_cdsNotBooked.length,
+    closedLostFromAC: lvl4_closedLostAC.length,
+    cdCompleted:    lvl5_cdCompleted.length,
+    cdNoShow:       lvl5_cdNoShow.length,
+    cdScheduled:    lvl5_cdScheduled.length,
+    closedLostFromCD: lvl5_closedLostCD.length,
+    acsSkipHR:      acsSkipHR.length,
+    cdsSkipHR:      cdsSkipHR.length,
+    paidRF:         paidRF.length,
+    closedWon:      closedWon.length,
+    /* Drill-down lists keyed by bucket name. */
+    deals: {
+      dcCompleted: lvl1_completed,  dcNoShow: lvl1_noshow,  dcScheduled: lvl1_scheduled,
+      dcUnqualified: dcUnqualifiedDeals,
+      acsBooked: lvl2_acsBooked,    acsSkip: lvl2_acsSkip,  acsNotBooked: lvl2_acsNotBooked,
+      acCompleted: lvl3_acCompleted, acNoShow: lvl3_acNoShow, acScheduled: lvl3_acScheduled,
+      cdsBooked: lvl4_cdsBooked,    cdsSkip: lvl4_cdsSkip,  cdsNotBooked: lvl4_cdsNotBooked,
+      closedLostFromAC: lvl4_closedLostAC,
+      cdCompleted: lvl5_cdCompleted, cdNoShow: lvl5_cdNoShow, cdScheduled: lvl5_cdScheduled,
+      closedLostFromCD: lvl5_closedLostCD,
+      acsSkipHR: acsSkipHR, cdsSkipHR: cdsSkipHR,
+      paidRF: paidRF, closedWon: closedWon,
+    }
+  };
+}
+
+function validateSimpleFunnel(f) {
+  var checks = [
+    { label: 'DC Result reconciles to DCs Booked', parent: f.dcBooked,    sum: f.dcCompleted + f.dcNoShow + f.dcScheduled },
+    { label: 'DC Completed split',                 parent: f.dcCompleted, sum: f.acsBooked + f.acsSkip + f.acsNotBooked + f.dcUnqualified },
+    { label: 'AC Result reconciles to ACs Booked', parent: f.acsBooked,   sum: f.acCompleted + f.acNoShow + f.acScheduled },
+    { label: 'AC Completed split',                 parent: f.acCompleted, sum: f.cdsBooked + f.cdsSkip + f.cdsNotBooked + f.closedLostFromAC },
+    { label: 'CD Result reconciles to CDs Booked', parent: f.cdsBooked,   sum: f.cdCompleted + f.cdNoShow + f.cdScheduled + f.closedLostFromCD },
+  ];
+  checks.forEach(function(c){ c.ok = (c.parent === c.sum); c.delta = c.sum - c.parent; });
+  return checks;
+}
+
+/* ── Rendering helpers ── */
+function _svFCell(label, count, parent, color, dealsKey) {
+  var pct = parent > 0 ? ((count / parent) * 100).toFixed(2) + '%' : '—';
+  var bg  = count > 0 ? color : 'var(--surface2)';
+  var tcol = count > 0 ? '#fff' : 'var(--muted)';
+  return '<button type="button" onclick="showSvFunnelDeals(\'' + dealsKey + '\', \'' + _mpEsc(label) + '\')" '
+       + 'style="flex:1;min-width:130px;text-align:center;background:' + bg + ';color:' + tcol + ';'
+       + 'border:1px solid var(--border);border-radius:8px;padding:14px 10px;cursor:' + (count > 0 ? 'pointer' : 'default') + ';transition:opacity .15s">'
+       + '<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.95;margin-bottom:6px">' + _mpEsc(label) + '</div>'
+       + '<div style="font-size:22px;font-weight:800;line-height:1">' + count + '</div>'
+       + '<div style="font-size:10px;opacity:.75;margin-top:4px">' + pct + '</div>'
+       + '</button>';
+}
+
+function _svFRow(rowLabel, rowSub, cells, validation) {
+  var html = '<div style="display:grid;grid-template-columns:220px 1fr 70px;gap:14px;align-items:center;padding:10px 0;border-top:1px solid var(--border)">';
+  html += '<div><div style="font-size:13px;font-weight:700;color:var(--text)">' + _mpEsc(rowLabel) + '</div>';
+  if (rowSub) html += '<div style="font-size:11px;color:var(--muted);margin-top:3px">' + _mpEsc(rowSub) + '</div>';
+  html += '</div>';
+  html += '<div style="display:flex;flex-wrap:wrap;gap:8px">' + cells + '</div>';
+  if (validation) {
+    var icon = validation.ok ? '<span style="color:var(--green);font-size:18px" title="Reconciles">&#x2713;</span>'
+                              : '<span style="color:var(--red);font-size:13px;font-weight:700" title="Mismatch: sum=' + validation.sum + ', parent=' + validation.parent + '">&#x26A0; Δ' + (validation.delta > 0 ? '+' : '') + validation.delta + '</span>';
+    html += '<div style="text-align:center">' + icon + '</div>';
+  } else {
+    html += '<div></div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+/* Persist selected month in module state so deals popup uses the right cache. */
+var SV_CURRENT_FUNNEL = null;
+
+function showSvFunnelDeals(key, label) {
+  if (!SV_CURRENT_FUNNEL || !SV_CURRENT_FUNNEL.deals) return;
+  var deals = SV_CURRENT_FUNNEL.deals[key] || [];
+  if (!deals.length) return;
+  /* Render a modal-ish panel under the funnel listing the deals. */
+  var existing = document.getElementById('sv-funnel-drill');
+  var html = '<div id="sv-funnel-drill" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:14px">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+  html += '<div><strong>' + _mpEsc(label) + '</strong> &middot; <span style="color:var(--muted);font-size:12px">' + deals.length + ' deal' + (deals.length === 1 ? '' : 's') + '</span></div>';
+  html += '<button type="button" onclick="document.getElementById(\'sv-funnel-drill\').remove()" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px">Close</button>';
+  html += '</div>';
+  html += '<table class="pd-deal-table"><thead><tr><th>Company / Deal</th><th>Lead Source</th><th>Contact Created</th><th>DC</th><th>AC</th><th>Paid</th><th>Stage</th></tr></thead><tbody>';
+  deals.forEach(function(d){
+    var url = 'https://app.hubspot.com/contacts/44390857/record/0-3/' + d.id;
+    html += '<tr>';
+    html += '<td style="font-weight:600"><a href="' + url + '" target="_blank" style="color:inherit;text-decoration:none">' + _mpEsc(d.dealName || d.company || '—') + '</a></td>';
+    html += '<td style="color:var(--muted);font-size:12px">' + _mpEsc(d.leadSource || '—') + '</td>';
+    html += '<td style="color:var(--muted)">' + _mpEsc(d.contactCreated || '—') + '</td>';
+    html += '<td>' + _mpEsc(d.dcDate || '—') + '</td>';
+    html += '<td>' + _mpEsc(d.acDate || '—') + '</td>';
+    html += '<td style="color:var(--yellow)">' + _mpEsc(d.paidDate || '—') + '</td>';
+    html += '<td style="color:var(--muted);font-size:12px">' + _mpEsc(d.stage || '—') + '</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  html += '</div>';
+  if (existing) existing.remove();
+  document.getElementById('sv-funnel-body').insertAdjacentHTML('beforeend', html);
+}
+
+function renderSvFunnel() {
+  /* Populate month selector from funnelMatrix. */
+  var sel = document.getElementById('sv-funnel-month');
+  var fm  = (REPORT.longView && REPORT.longView.funnelMatrix) || [];
+  if (!sel) return;
+  if (!fm.length) {
+    sel.innerHTML = '<option>No data</option>';
+    setHTML('sv-funnel-body', '<div style="color:var(--muted);padding:8px">No funnel data available.</div>');
+    return;
+  }
+  /* Newest first. Default to the latest month with any DC activity. */
+  var sortedDesc = fm.slice().reverse();
+  var defaultIdx = 0;
+  for (var i = 0; i < sortedDesc.length; i++) {
+    if ((sortedDesc[i].dcSched || 0) > 0) { defaultIdx = i; break; }
+  }
+  sel.innerHTML = sortedDesc.map(function(m, i){
+    return '<option value="' + _mpEsc(m.key) + '"' + (i === defaultIdx ? ' selected' : '') + '>' + _mpEsc(m.label) + (m.partial ? ' (partial)' : '') + '</option>';
+  }).join('');
+  sel.onchange = function(){ renderSvFunnelFor(sel.value); };
+  renderSvFunnelFor(sel.value);
+}
+
+function renderSvFunnelFor(monthKey) {
+  var f = computeSimpleFunnel(REPORT.rawDeals || [], monthKey);
+  SV_CURRENT_FUNNEL = f;
+  var checks = validateSimpleFunnel(f);
+  var allOk  = checks.every(function(c){ return c.ok; });
+
+  /* Header validation pill. */
+  var vEl = document.getElementById('sv-funnel-validation');
+  if (vEl) {
+    if (allOk) {
+      vEl.innerHTML = '<span style="color:var(--green);font-weight:700">&#x2713; All stages reconcile</span>';
+    } else {
+      var failing = checks.filter(function(c){ return !c.ok; });
+      vEl.innerHTML = '<span style="color:var(--red);font-weight:700">&#x26A0; ' + failing.length + ' stage' + (failing.length === 1 ? '' : 's') + ' mismatch</span>';
+    }
+  }
+
+  /* Color palette per user spec — matching greens for progression, others for drop-off. */
+  var G1 = '#16a34a';  /* darkest green: top success */
+  var G2 = '#22c55e';
+  var G3 = '#4ade80';
+  var G4 = '#86efac';
+  var G5 = '#bbf7d0';  /* lightest green */
+  var YEL = '#ca8a04'; /* no show */
+  var ORG = '#ea580c'; /* unqualified */
+  var BLU = '#3b82f6'; /* skip */
+  var GRY = '#525252'; /* scheduled / pending */
+  var RED = '#dc2626'; /* closed lost */
+
+  var html = '';
+
+  /* ── Top-of-funnel: DCs Booked ── */
+  html += '<div style="display:grid;grid-template-columns:220px 1fr 70px;gap:14px;align-items:center;padding:6px 0">';
+  html += '<div style="font-size:13px;font-weight:700">DCs BOOKED</div>';
+  html += '<div><div style="display:inline-block;background:' + G1 + ';color:#fff;border-radius:8px;padding:14px 28px;font-size:28px;font-weight:800;min-width:120px;text-align:center">' + f.dcBooked + '</div></div>';
+  html += '<div></div></div>';
+
+  /* DC Result */
+  html += _svFRow('DC Result', '24 + 14 + 0 should equal DCs Booked',
+    _svFCell('DC Completed', f.dcCompleted, f.dcBooked, G2, 'dcCompleted')
+    + _svFCell('DC No Show',    f.dcNoShow,    f.dcBooked, YEL, 'dcNoShow')
+    + _svFCell('DC Scheduled',  f.dcScheduled, f.dcBooked, GRY, 'dcScheduled'),
+    checks[0]);
+
+  /* DC Completed split */
+  html += _svFRow('ACs BOOKED (from DC Completed)', 'ACs Booked + ACs Skip + ACs Not Booked + DC Unqualified = DC Completed',
+    _svFCell('ACs Booked',     f.acsBooked,     f.dcCompleted, G3, 'acsBooked')
+    + _svFCell('ACs Skip',     f.acsSkip,       f.dcCompleted, BLU, 'acsSkip')
+    + _svFCell('ACs Not Booked', f.acsNotBooked, f.dcCompleted, GRY, 'acsNotBooked')
+    + _svFCell('DC Unqualified', f.dcUnqualified, f.dcCompleted, ORG, 'dcUnqualified'),
+    checks[1]);
+
+  /* AC Result */
+  html += _svFRow('AC Result', 'AC Completed + AC No Show + AC Scheduled = ACs Booked',
+    _svFCell('AC Completed', f.acCompleted, f.acsBooked, G3, 'acCompleted')
+    + _svFCell('AC No Show',    f.acNoShow,    f.acsBooked, YEL, 'acNoShow')
+    + _svFCell('AC Scheduled',  f.acScheduled, f.acsBooked, GRY, 'acScheduled'),
+    checks[2]);
+
+  /* CDs Booked split */
+  html += _svFRow('CDs BOOKED (from AC Completed)', 'CDs Booked + CDs Skip + CDs Not Booked + Closed Lost = AC Completed',
+    _svFCell('CDs Skip',         f.cdsSkip,         f.acCompleted, BLU, 'cdsSkip')
+    + _svFCell('CDs Booked',     f.cdsBooked,       f.acCompleted, G4, 'cdsBooked')
+    + _svFCell('CDs Not Booked', f.cdsNotBooked,    f.acCompleted, GRY, 'cdsNotBooked')
+    + _svFCell('Closed Lost',    f.closedLostFromAC, f.acCompleted, RED, 'closedLostFromAC'),
+    checks[3]);
+
+  /* CD Result */
+  html += _svFRow('CD Result', 'CD Completed + CD No Show + CD Scheduled + Closed Lost = CDs Booked',
+    _svFCell('CD Completed',  f.cdCompleted,      f.cdsBooked, G4, 'cdCompleted')
+    + _svFCell('CD No Show',  f.cdNoShow,         f.cdsBooked, YEL, 'cdNoShow')
+    + _svFCell('CD Scheduled', f.cdScheduled,     f.cdsBooked, GRY, 'cdScheduled')
+    + _svFCell('Closed Lost', f.closedLostFromCD, f.cdsBooked, RED, 'closedLostFromCD'),
+    checks[4]);
+
+  /* Moved to H&R */
+  html += '<div style="display:grid;grid-template-columns:220px 1fr 70px;gap:14px;align-items:center;padding:10px 0;border-top:1px solid var(--border);margin-top:8px">';
+  html += '<div><div style="font-size:13px;font-weight:700">Moved to H&amp;R Stage</div><div style="font-size:11px;color:var(--muted);margin-top:3px">Deals that progressed regardless of CD</div></div>';
+  html += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
+  html += _svFCell('ACs Skip → H&R', f.acsSkipHR, f.acsSkip,   G5, 'acsSkipHR');
+  html += _svFCell('CDs Skip → H&R', f.cdsSkipHR, f.cdsSkip,   G5, 'cdsSkipHR');
+  html += _svFCell('Paid RF',         f.paidRF,    f.dcBooked,  G1, 'paidRF');
+  html += '</div><div></div></div>';
+
+  /* Final */
+  html += '<div style="display:grid;grid-template-columns:220px 1fr 70px;gap:14px;align-items:center;padding:10px 0;border-top:1px solid var(--border)">';
+  html += '<div><div style="font-size:13px;font-weight:700">Paid First Invoice</div><div style="font-size:11px;color:var(--muted);margin-top:3px">Final outcome</div></div>';
+  html += '<div style="display:flex;gap:8px">' + _svFCell('Closed Won', f.closedWon, f.dcBooked, G1, 'closedWon') + '</div>';
+  html += '<div></div></div>';
+
+  /* Validation footer — full list of checks with deltas. */
+  html += '<div style="margin-top:18px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px">';
+  html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Reconciliation Checks</div>';
+  checks.forEach(function(c){
+    var ok = c.ok;
+    html += '<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;color:' + (ok ? 'var(--text)' : 'var(--red)') + '">';
+    html += '<span>' + (ok ? '&#x2713;' : '&#x26A0;') + ' ' + _mpEsc(c.label) + '</span>';
+    html += '<span style="font-family:monospace">' + c.sum + ' = ' + c.parent + (ok ? '' : '  (Δ ' + (c.delta > 0 ? '+' : '') + c.delta + ')') + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  setHTML('sv-funnel-body', html);
 }
 
 /* ── SIMPLE VIEW — monthly trend chart + breakdown table ── */
