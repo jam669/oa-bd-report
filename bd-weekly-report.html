@@ -101957,11 +101957,19 @@ function computeSimpleFunnel(rawDeals, monthKey) {
   });
   var lvl5_closedLostCD = lvl4_cdsBooked.filter(function(d){ return d.stageId === SV_FUNNEL_STAGE_CLOSED_LOST; });
 
-  /* H&R movement + final outcomes — based on the entire in-month set. */
+  /* H&R movement — these are cohort-tied (deals that DC'd this month, then took the skip path). */
   var acsSkipHR  = lvl2_acsSkip.filter(function(d){ return !!d.hrEntered; });
   var cdsSkipHR  = lvl4_cdsSkip.filter(function(d){ return !!d.hrEntered; });
-  var paidRF     = inMonth.filter(function(d){ return !!d.paidDate; });
-  var closedWon  = inMonth.filter(function(d){ return d.stageId === SV_FUNNEL_STAGE_CLOSED_WON; });
+
+  /* Paid RF + Closed Won — EVENT-MONTH totals across ALL deals, not just the DC cohort.
+     A payment in March can come from a deal whose DC was in Jan/Feb. The user's exec
+     sheet treats these as monthly milestone counts, not cohort progression. */
+  var paidRF = (rawDeals || []).filter(function(d){
+    return d.paidDate && d.paidDate.slice(0, 7) === monthKey;
+  });
+  var closedWon = (rawDeals || []).filter(function(d){
+    return d.closeDate && d.closeDate.slice(0, 7) === monthKey && d.stageId === SV_FUNNEL_STAGE_CLOSED_WON;
+  });
 
   return {
     dcBooked: inMonth.length,
@@ -102181,15 +102189,15 @@ function renderSvFunnelFor(monthKey) {
   html += '<div style="display:grid;grid-template-columns:220px 1fr 70px;gap:14px;align-items:center;padding:10px 0;border-top:1px solid var(--border);margin-top:8px">';
   html += '<div><div style="font-size:13px;font-weight:700">Moved to H&amp;R Stage</div><div style="font-size:11px;color:var(--muted);margin-top:3px">Deals that progressed regardless of CD</div></div>';
   html += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
-  html += _svFCell('ACs Skip → H&R', f.acsSkipHR, f.acsSkip,   G5, 'acsSkipHR');
-  html += _svFCell('CDs Skip → H&R', f.cdsSkipHR, f.cdsSkip,   G5, 'cdsSkipHR');
-  html += _svFCell('Paid RF',         f.paidRF,    f.dcBooked,  G1, 'paidRF');
+  html += _svFCell('ACs Skip → H&R', f.acsSkipHR, f.acsSkip, G5, 'acsSkipHR');
+  html += _svFCell('CDs Skip → H&R', f.cdsSkipHR, f.cdsSkip, G5, 'cdsSkipHR');
+  html += _svFCell('Paid RF',         f.paidRF,    0,         G1, 'paidRF');  /* event-month total, no % */
   html += '</div><div></div></div>';
 
   /* Final */
   html += '<div style="display:grid;grid-template-columns:220px 1fr 70px;gap:14px;align-items:center;padding:10px 0;border-top:1px solid var(--border)">';
-  html += '<div><div style="font-size:13px;font-weight:700">Paid First Invoice</div><div style="font-size:11px;color:var(--muted);margin-top:3px">Final outcome</div></div>';
-  html += '<div style="display:flex;gap:8px">' + _svFCell('Closed Won', f.closedWon, f.dcBooked, G1, 'closedWon') + '</div>';
+  html += '<div><div style="font-size:13px;font-weight:700">Paid First Invoice</div><div style="font-size:11px;color:var(--muted);margin-top:3px">Closed-won deals in this month</div></div>';
+  html += '<div style="display:flex;gap:8px">' + _svFCell('Closed Won', f.closedWon, 0, G1, 'closedWon') + '</div>';  /* event-month total */
   html += '<div></div></div>';
 
   /* Validation footer — full list of checks with deltas. */
