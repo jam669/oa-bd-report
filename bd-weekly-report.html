@@ -101913,23 +101913,29 @@ function computeSimpleFunnel(rawDeals, monthKey) {
     return d.dcDate && d.dcDate.slice(0, 7) === monthKey;
   });
 
-  /* Level 1 — DC Result (every deal in month falls in exactly one of these): */
+  /* Level 1 — DC Result: every deal in the month must land in exactly one bucket.
+     DC Skip is now its OWN bucket (no longer lumped with Scheduled) — required
+     for reconciliation and so DC Skip → H&R can be a proper subset. */
   var lvl1_completed = inMonth.filter(function(d){
     var a = d.dcAttendanceRaw;
     return a === 'Attended' || a === 'DC Unqualified';   // call happened
   });
   var lvl1_noshow    = inMonth.filter(function(d){ return d.dcAttendanceRaw === 'No show'; });
+  var lvl1_dcSkip    = inMonth.filter(function(d){ return d.dcAttendanceRaw === 'DC Skip'; });
   var lvl1_scheduled = inMonth.filter(function(d){
     var a = d.dcAttendanceRaw;
-    return !a || a === 'Yes' || a === 'Rescheduled' || a === 'DC Skip';
+    return !a || a === 'Yes' || a === 'Rescheduled';
   });
 
-  /* Level 2 — Split of DC Completed (24 = 6 + 1 + 11 + 6): */
+  /* Level 2 — Split of DC Completed (Attended + DC Unqualified).
+     AC Skip is now defined strictly as acAttendanceRaw='AC Skip' — independent of
+     whether an AC date exists. ACs Booked / Not Booked are filtered to exclude
+     AC Skip so the three sub-buckets stay mutually exclusive. */
   var dcUnqualifiedDeals = lvl1_completed.filter(function(d){ return d.dcAttendanceRaw === 'DC Unqualified'; });
   var attendedDeals      = lvl1_completed.filter(function(d){ return d.dcAttendanceRaw === 'Attended'; });
-  var lvl2_acsBooked     = attendedDeals.filter(function(d){ return !!d.acDate; });
-  var lvl2_acsSkip       = attendedDeals.filter(function(d){ return !d.acDate && d.acAttendanceRaw === 'AC Skip'; });
-  var lvl2_acsNotBooked  = attendedDeals.filter(function(d){ return !d.acDate && d.acAttendanceRaw !== 'AC Skip'; });
+  var lvl2_acsSkip       = attendedDeals.filter(function(d){ return d.acAttendanceRaw === 'AC Skip'; });
+  var lvl2_acsBooked     = attendedDeals.filter(function(d){ return d.acAttendanceRaw !== 'AC Skip' && !!d.acDate; });
+  var lvl2_acsNotBooked  = attendedDeals.filter(function(d){ return d.acAttendanceRaw !== 'AC Skip' && !d.acDate; });
 
   /* Level 3 — AC Result (from ACs Booked): */
   var lvl3_acCompleted = lvl2_acsBooked.filter(function(d){
@@ -101942,11 +101948,12 @@ function computeSimpleFunnel(rawDeals, monthKey) {
     return !a || a === 'Scheduled' || a === 'Rescheduled';
   });
 
-  /* Level 4 — CDs Booked split (from AC Completed): */
-  var lvl4_cdsBooked     = lvl3_acCompleted.filter(function(d){ return !!d.cdDate; });
-  var lvl4_cdsSkip       = lvl3_acCompleted.filter(function(d){ return !d.cdDate && d.cdAttendanceRaw === 'CD Skip'; });
-  var lvl4_closedLostAC  = lvl3_acCompleted.filter(function(d){ return !d.cdDate && d.cdAttendanceRaw !== 'CD Skip' && d.stageId === SV_FUNNEL_STAGE_CLOSED_LOST; });
-  var lvl4_cdsNotBooked  = lvl3_acCompleted.filter(function(d){ return !d.cdDate && d.cdAttendanceRaw !== 'CD Skip' && d.stageId !== SV_FUNNEL_STAGE_CLOSED_LOST; });
+  /* Level 4 — CDs Booked split (from AC Completed). CD Skip is strict on
+     attendance enum, same pattern as AC Skip. */
+  var lvl4_cdsSkip       = lvl3_acCompleted.filter(function(d){ return d.cdAttendanceRaw === 'CD Skip'; });
+  var lvl4_cdsBooked     = lvl3_acCompleted.filter(function(d){ return d.cdAttendanceRaw !== 'CD Skip' && !!d.cdDate; });
+  var lvl4_closedLostAC  = lvl3_acCompleted.filter(function(d){ return d.cdAttendanceRaw !== 'CD Skip' && !d.cdDate && d.stageId === SV_FUNNEL_STAGE_CLOSED_LOST; });
+  var lvl4_cdsNotBooked  = lvl3_acCompleted.filter(function(d){ return d.cdAttendanceRaw !== 'CD Skip' && !d.cdDate && d.stageId !== SV_FUNNEL_STAGE_CLOSED_LOST; });
 
   /* Level 5 — CD Result (from CDs Booked): */
   var lvl5_cdCompleted = lvl4_cdsBooked.filter(function(d){ return d.cdAttendanceRaw === 'CD No Attended'; });
@@ -101957,8 +101964,9 @@ function computeSimpleFunnel(rawDeals, monthKey) {
   });
   var lvl5_closedLostCD = lvl4_cdsBooked.filter(function(d){ return d.stageId === SV_FUNNEL_STAGE_CLOSED_LOST; });
 
-  /* H&R movement — these are cohort-tied (deals that DC'd this month, then took the skip path). */
+  /* H&R movement — cohort-tied subsets of each Skip bucket. */
   var acsSkipHR  = lvl2_acsSkip.filter(function(d){ return !!d.hrEntered; });
+  var dcSkipHR   = lvl1_dcSkip.filter(function(d){ return !!d.hrEntered; });
   var cdsSkipHR  = lvl4_cdsSkip.filter(function(d){ return !!d.hrEntered; });
 
   /* Paid RF + Closed Won — EVENT-MONTH totals across ALL deals, not just the DC cohort.
@@ -101976,6 +101984,7 @@ function computeSimpleFunnel(rawDeals, monthKey) {
     dcCompleted:    lvl1_completed.length,
     dcNoShow:       lvl1_noshow.length,
     dcScheduled:    lvl1_scheduled.length,
+    dcSkip:         lvl1_dcSkip.length,
     dcUnqualified:  dcUnqualifiedDeals.length,
     acsBooked:      lvl2_acsBooked.length,
     acsSkip:        lvl2_acsSkip.length,
@@ -101992,12 +102001,14 @@ function computeSimpleFunnel(rawDeals, monthKey) {
     cdScheduled:    lvl5_cdScheduled.length,
     closedLostFromCD: lvl5_closedLostCD.length,
     acsSkipHR:      acsSkipHR.length,
+    dcSkipHR:       dcSkipHR.length,
     cdsSkipHR:      cdsSkipHR.length,
     paidRF:         paidRF.length,
     closedWon:      closedWon.length,
     /* Drill-down lists keyed by bucket name. */
     deals: {
       dcCompleted: lvl1_completed,  dcNoShow: lvl1_noshow,  dcScheduled: lvl1_scheduled,
+      dcSkip: lvl1_dcSkip,
       dcUnqualified: dcUnqualifiedDeals,
       acsBooked: lvl2_acsBooked,    acsSkip: lvl2_acsSkip,  acsNotBooked: lvl2_acsNotBooked,
       acCompleted: lvl3_acCompleted, acNoShow: lvl3_acNoShow, acScheduled: lvl3_acScheduled,
@@ -102005,7 +102016,7 @@ function computeSimpleFunnel(rawDeals, monthKey) {
       closedLostFromAC: lvl4_closedLostAC,
       cdCompleted: lvl5_cdCompleted, cdNoShow: lvl5_cdNoShow, cdScheduled: lvl5_cdScheduled,
       closedLostFromCD: lvl5_closedLostCD,
-      acsSkipHR: acsSkipHR, cdsSkipHR: cdsSkipHR,
+      acsSkipHR: acsSkipHR, dcSkipHR: dcSkipHR, cdsSkipHR: cdsSkipHR,
       paidRF: paidRF, closedWon: closedWon,
     }
   };
@@ -102013,7 +102024,7 @@ function computeSimpleFunnel(rawDeals, monthKey) {
 
 function validateSimpleFunnel(f) {
   var checks = [
-    { label: 'DC Result reconciles to DCs Booked', parent: f.dcBooked,    sum: f.dcCompleted + f.dcNoShow + f.dcScheduled },
+    { label: 'DC Result reconciles to DCs Booked', parent: f.dcBooked,    sum: f.dcCompleted + f.dcNoShow + f.dcScheduled + f.dcSkip },
     { label: 'DC Completed split',                 parent: f.dcCompleted, sum: f.acsBooked + f.acsSkip + f.acsNotBooked + f.dcUnqualified },
     { label: 'AC Result reconciles to ACs Booked', parent: f.acsBooked,   sum: f.acCompleted + f.acNoShow + f.acScheduled },
     { label: 'AC Completed split',                 parent: f.acCompleted, sum: f.cdsBooked + f.cdsSkip + f.cdsNotBooked + f.closedLostFromAC },
@@ -102147,11 +102158,12 @@ function renderSvFunnelFor(monthKey) {
   html += '<div><div style="display:inline-block;background:' + G1 + ';color:#fff;border-radius:8px;padding:14px 28px;font-size:28px;font-weight:800;min-width:120px;text-align:center">' + f.dcBooked + '</div></div>';
   html += '<div></div></div>';
 
-  /* DC Result */
-  html += _svFRow('DC Result', '24 + 14 + 0 should equal DCs Booked',
-    _svFCell('DC Completed', f.dcCompleted, f.dcBooked, G2, 'dcCompleted')
+  /* DC Result — now 4 buckets (DC Skip split out) */
+  html += _svFRow('DC Result', 'DC Completed + DC No Show + DC Scheduled + DC Skip = DCs Booked',
+    _svFCell('DC Completed', f.dcCompleted, f.dcBooked, G2,  'dcCompleted')
     + _svFCell('DC No Show',    f.dcNoShow,    f.dcBooked, YEL, 'dcNoShow')
-    + _svFCell('DC Scheduled',  f.dcScheduled, f.dcBooked, GRY, 'dcScheduled'),
+    + _svFCell('DC Scheduled',  f.dcScheduled, f.dcBooked, GRY, 'dcScheduled')
+    + _svFCell('DC Skip',       f.dcSkip,      f.dcBooked, BLU, 'dcSkip'),
     checks[0]);
 
   /* DC Completed split */
@@ -102190,6 +102202,7 @@ function renderSvFunnelFor(monthKey) {
   html += '<div><div style="font-size:13px;font-weight:700">Moved to H&amp;R Stage</div><div style="font-size:11px;color:var(--muted);margin-top:3px">Deals that progressed regardless of CD</div></div>';
   html += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
   html += _svFCell('ACs Skip → H&R', f.acsSkipHR, f.acsSkip, G5, 'acsSkipHR');
+  html += _svFCell('DC Skip → H&R',  f.dcSkipHR,  f.dcSkip,  G5, 'dcSkipHR');
   html += _svFCell('CDs Skip → H&R', f.cdsSkipHR, f.cdsSkip, G5, 'cdsSkipHR');
   html += _svFCell('Paid RF',         f.paidRF,    0,         G1, 'paidRF');  /* event-month total, no % */
   html += '</div><div></div></div>';
