@@ -102157,6 +102157,7 @@ function computeSimpleFunnel(rawDeals, monthKey) {
     closedWon:      closedWon.length,
     /* Drill-down lists keyed by bucket name. */
     deals: {
+      dcBooked:    inMonth,         /* parent tile = full DC pool for the month */
       dcCompleted: lvl1_completed,  dcNoShow: lvl1_noshow,  dcScheduled: lvl1_scheduled,
       dcUnqualified: dcUnqualifiedDeals,
       acsBooked: lvl2_acsBooked,    acsSkip: lvl2_acsSkip,  acsNotBooked: lvl2_acsNotBooked,
@@ -102183,30 +102184,38 @@ function validateSimpleFunnel(f) {
   return checks;
 }
 
-/* ── Rendering helpers ── */
+/* ── Rendering helpers — equal 5-col waterfall grid per Arnold's feedback ── */
+/* Each row: [200px label] [1fr tile] [1fr tile] [1fr tile] [1fr tile] [60px validation] */
 function _svFCell(label, count, parent, color, dealsKey) {
-  var pct = parent > 0 ? ((count / parent) * 100).toFixed(2) + '%' : '—';
-  var bg  = count > 0 ? color : 'var(--surface2)';
+  var pct  = parent > 0 ? ((count / parent) * 100).toFixed(2) + '%' : '';
+  var bg   = count > 0 ? color : 'var(--surface2)';
   var tcol = count > 0 ? '#fff' : 'var(--muted)';
   return '<button type="button" onclick="showSvFunnelDeals(\'' + dealsKey + '\', \'' + _mpEsc(label) + '\')" '
-       + 'style="flex:1;min-width:130px;text-align:center;background:' + bg + ';color:' + tcol + ';'
-       + 'border:1px solid var(--border);border-radius:8px;padding:14px 10px;cursor:' + (count > 0 ? 'pointer' : 'default') + ';transition:opacity .15s">'
+       + 'style="background:' + bg + ';color:' + tcol + ';'
+       + 'border:1px solid var(--border);border-radius:8px;padding:14px 10px;cursor:' + (count > 0 ? 'pointer' : 'default') + ';'
+       + 'transition:opacity .15s;text-align:center;display:flex;flex-direction:column;justify-content:center;min-height:88px">'
        + '<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.95;margin-bottom:6px">' + _mpEsc(label) + '</div>'
        + '<div style="font-size:22px;font-weight:800;line-height:1">' + count + '</div>'
-       + '<div style="font-size:10px;opacity:.75;margin-top:4px">' + pct + '</div>'
+       + (pct ? '<div style="font-size:10px;opacity:.75;margin-top:4px">' + pct + '</div>' : '')
        + '</button>';
 }
+/* Parent tile: same shape but no % (it's the root of the row). */
+function _svFParent(label, count, color, dealsKey) {
+  return _svFCell(label, count, 0, color, dealsKey);
+}
+function _svFEmpty() { return '<div></div>'; }
 
-function _svFRow(rowLabel, rowSub, cells, validation) {
-  var html = '<div style="display:grid;grid-template-columns:220px 1fr 70px;gap:14px;align-items:center;padding:10px 0;border-top:1px solid var(--border)">';
-  html += '<div><div style="font-size:13px;font-weight:700;color:var(--text)">' + _mpEsc(rowLabel) + '</div>';
+/* tilesArr must have exactly 4 elements (cell HTML strings or null/empty). */
+function _svFRow(rowLabel, rowSub, tilesArr, validation) {
+  var html = '<div style="display:grid;grid-template-columns:200px repeat(4, 1fr) 60px;gap:10px;align-items:stretch;padding:10px 0;border-top:1px solid var(--border)">';
+  html += '<div style="align-self:center"><div style="font-size:13px;font-weight:700;color:var(--text)">' + _mpEsc(rowLabel) + '</div>';
   if (rowSub) html += '<div style="font-size:11px;color:var(--muted);margin-top:3px">' + _mpEsc(rowSub) + '</div>';
   html += '</div>';
-  html += '<div style="display:flex;flex-wrap:wrap;gap:8px">' + cells + '</div>';
+  for (var i = 0; i < 4; i++) html += (tilesArr[i] || _svFEmpty());
   if (validation) {
     var icon = validation.ok ? '<span style="color:var(--green);font-size:18px" title="Reconciles">&#x2713;</span>'
                               : '<span style="color:var(--red);font-size:13px;font-weight:700" title="Mismatch: sum=' + validation.sum + ', parent=' + validation.parent + '">&#x26A0; Δ' + (validation.delta > 0 ? '+' : '') + validation.delta + '</span>';
-    html += '<div style="text-align:center">' + icon + '</div>';
+    html += '<div style="align-self:center;text-align:center">' + icon + '</div>';
   } else {
     html += '<div></div>';
   }
@@ -102301,68 +102310,76 @@ function renderSvFunnelFor(monthKey) {
 
   var html = '';
 
-  /* ── Top-of-funnel: DCs Booked ── */
-  html += '<div style="display:grid;grid-template-columns:220px 1fr 70px;gap:14px;align-items:center;padding:6px 0">';
-  html += '<div style="font-size:13px;font-weight:700">DCs BOOKED</div>';
-  html += '<div><div style="display:inline-block;background:' + G1 + ';color:#fff;border-radius:8px;padding:14px 28px;font-size:28px;font-weight:800;min-width:120px;text-align:center">' + f.dcBooked + '</div></div>';
-  html += '<div></div></div>';
+  /* Waterfall: each row uses a 5-col equal grid. Booked / parent tile lives in col 1,
+     result splits fill cols 2-4, validation icon in col 5. */
 
-  /* DC Result — 3 mutually-exclusive buckets. DC Skip is intentionally NOT here
-     (it bypasses the DC funnel entirely per exec spec). */
-  html += _svFRow('DC Result', 'DC Completed + DC No Show + DC Scheduled = DCs Booked',
-    _svFCell('DC Completed', f.dcCompleted, f.dcBooked, G2,  'dcCompleted')
-    + _svFCell('DC No Show',    f.dcNoShow,    f.dcBooked, YEL, 'dcNoShow')
-    + _svFCell('DC Scheduled',  f.dcScheduled, f.dcBooked, GRY, 'dcScheduled'),
+  /* DC Funnel: DCs Booked + DC Result (Completed + No Show + Scheduled) */
+  html += _svFRow('DC Funnel', 'DCs Booked → result split',
+    [
+      _svFParent('DCs Booked',  f.dcBooked,                G1, 'dcBooked'),
+      _svFCell('DC Completed',  f.dcCompleted, f.dcBooked, G2, 'dcCompleted'),
+      _svFCell('DC No Show',    f.dcNoShow,    f.dcBooked, YEL, 'dcNoShow'),
+      _svFCell('DC Scheduled',  f.dcScheduled, f.dcBooked, GRY, 'dcScheduled')
+    ],
     checks[0]);
 
-  /* DC Completed split */
-  html += _svFRow('ACs BOOKED (from DC Completed)', 'ACs Booked + ACs Skip + ACs Not Booked + DC Unqualified = DC Completed',
-    _svFCell('ACs Booked',     f.acsBooked,     f.dcCompleted, G3, 'acsBooked')
-    + _svFCell('ACs Skip',     f.acsSkip,       f.dcCompleted, BLU, 'acsSkip')
-    + _svFCell('ACs Not Booked', f.acsNotBooked, f.dcCompleted, GRY, 'acsNotBooked')
-    + _svFCell('DC Unqualified', f.dcUnqualified, f.dcCompleted, ORG, 'dcUnqualified'),
+  /* DC Completed → next-stage breakdown (4 splits, no parent tile needed: header tells the story) */
+  html += _svFRow('DC Completed Split', 'ACs Booked + ACs Skip + ACs Not Booked + DC Unqualified = DC Completed',
+    [
+      _svFCell('ACs Booked',    f.acsBooked,      f.dcCompleted, G3,  'acsBooked'),
+      _svFCell('ACs Skip',      f.acsSkip,        f.dcCompleted, BLU, 'acsSkip'),
+      _svFCell('ACs Not Booked', f.acsNotBooked,  f.dcCompleted, GRY, 'acsNotBooked'),
+      _svFCell('DC Unqualified', f.dcUnqualified, f.dcCompleted, ORG, 'dcUnqualified')
+    ],
     checks[1]);
 
-  /* AC Result */
-  html += _svFRow('AC Result', 'AC Completed + AC No Show + AC Scheduled = ACs Booked',
-    _svFCell('AC Completed', f.acCompleted, f.acsBooked, G3, 'acCompleted')
-    + _svFCell('AC No Show',    f.acNoShow,    f.acsBooked, YEL, 'acNoShow')
-    + _svFCell('AC Scheduled',  f.acScheduled, f.acsBooked, GRY, 'acScheduled'),
+  /* AC Funnel: ACs Booked + AC Result */
+  html += _svFRow('AC Funnel', 'ACs Booked → result split',
+    [
+      _svFParent('ACs Booked',  f.acsBooked,                G3, 'acsBooked'),
+      _svFCell('AC Completed',  f.acCompleted, f.acsBooked, G3, 'acCompleted'),
+      _svFCell('AC No Show',    f.acNoShow,    f.acsBooked, YEL, 'acNoShow'),
+      _svFCell('AC Scheduled',  f.acScheduled, f.acsBooked, GRY, 'acScheduled')
+    ],
     checks[2]);
 
-  /* CDs Booked split */
-  html += _svFRow('CDs BOOKED (from AC Completed)', 'CDs Booked + CDs Skip + CDs Not Booked + Closed Lost = AC Completed',
-    _svFCell('CDs Skip',         f.cdsSkip,         f.acCompleted, BLU, 'cdsSkip')
-    + _svFCell('CDs Booked',     f.cdsBooked,       f.acCompleted, G4, 'cdsBooked')
-    + _svFCell('CDs Not Booked', f.cdsNotBooked,    f.acCompleted, GRY, 'cdsNotBooked')
-    + _svFCell('Closed Lost',    f.closedLostFromAC, f.acCompleted, RED, 'closedLostFromAC'),
+  /* AC Completed → CDs breakdown */
+  html += _svFRow('AC Completed Split', 'CDs Booked + CDs Skip + CDs Not Booked + Closed Lost = AC Completed',
+    [
+      _svFCell('CDs Booked',     f.cdsBooked,       f.acCompleted, G4,  'cdsBooked'),
+      _svFCell('CDs Skip',       f.cdsSkip,         f.acCompleted, BLU, 'cdsSkip'),
+      _svFCell('CDs Not Booked', f.cdsNotBooked,    f.acCompleted, GRY, 'cdsNotBooked'),
+      _svFCell('Closed Lost',    f.closedLostFromAC, f.acCompleted, RED, 'closedLostFromAC')
+    ],
     checks[3]);
 
-  /* CD Result */
-  html += _svFRow('CD Result', 'CD Completed + CD No Show + CD Scheduled + Closed Lost = CDs Booked',
-    _svFCell('CD Completed',  f.cdCompleted,      f.cdsBooked, G4, 'cdCompleted')
-    + _svFCell('CD No Show',  f.cdNoShow,         f.cdsBooked, YEL, 'cdNoShow')
-    + _svFCell('CD Scheduled', f.cdScheduled,     f.cdsBooked, GRY, 'cdScheduled')
-    + _svFCell('Closed Lost', f.closedLostFromCD, f.cdsBooked, RED, 'closedLostFromCD'),
+  /* CD Funnel: CDs Booked + CD Result */
+  html += _svFRow('CD Funnel', 'CDs Booked → result split',
+    [
+      _svFParent('CDs Booked',  f.cdsBooked,                G4, 'cdsBooked'),
+      _svFCell('CD Completed',  f.cdCompleted,      f.cdsBooked, G4,  'cdCompleted'),
+      _svFCell('CD No Show',    f.cdNoShow,         f.cdsBooked, YEL, 'cdNoShow'),
+      _svFCell('CD Scheduled',  f.cdScheduled,      f.cdsBooked, GRY, 'cdScheduled')
+    ],
     checks[4]);
 
-  /* Moved to H&R — exec-spec layout: AC Skip H&R, DC Skip H&R, Paid RF, Signed SA.
-     AC Skip H&R = subset of AC Skip from the DC cohort (still inside funnel).
-     DC Skip H&R = standalone event-month metric (no % since no parent denominator).
-     Paid RF / Signed SA = event-month totals, independent of any cohort. */
-  html += '<div style="display:grid;grid-template-columns:220px 1fr 70px;gap:14px;align-items:center;padding:10px 0;border-top:1px solid var(--border);margin-top:8px">';
-  html += '<div><div style="font-size:13px;font-weight:700">Moved to H&amp;R Stage</div><div style="font-size:11px;color:var(--muted);margin-top:3px">Outcomes independent of DC funnel</div></div>';
-  html += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
-  html += _svFCell('AC Skip → H&R', f.acsSkipHR, f.acsSkip, G5, 'acsSkipHR');     /* cohort subset, shows % */
-  html += _svFCell('DC Skip → H&R', f.dcSkipHR,  0,         BLU, 'dcSkipHR');      /* event-month, no % */
-  html += _svFCell('Paid RF',        f.paidRF,    0,         G1, 'paidRF');        /* event-month, no % */
-  html += '</div><div></div></div>';
+  /* Moved to H&R — three event-month / cohort outcomes (3 tiles + 1 empty slot). */
+  html += _svFRow('Moved to H&R', 'Skip-paths and Paid RF (independent of DC funnel)',
+    [
+      _svFCell('AC Skip → H&R', f.acsSkipHR, f.acsSkip, G5,  'acsSkipHR'),
+      _svFCell('DC Skip → H&R', f.dcSkipHR,  0,         BLU, 'dcSkipHR'),
+      _svFCell('Paid RF',        f.paidRF,    0,         G1,  'paidRF'),
+      null
+    ],
+    null);
 
-  /* Final */
-  html += '<div style="display:grid;grid-template-columns:220px 1fr 70px;gap:14px;align-items:center;padding:10px 0;border-top:1px solid var(--border)">';
-  html += '<div><div style="font-size:13px;font-weight:700">Paid First Invoice</div><div style="font-size:11px;color:var(--muted);margin-top:3px">Closed-won deals in this month</div></div>';
-  html += '<div style="display:flex;gap:8px">' + _svFCell('Closed Won', f.closedWon, 0, G1, 'closedWon') + '</div>';  /* event-month total */
-  html += '<div></div></div>';
+  /* Final outcome — Closed Won alone */
+  html += _svFRow('Paid First Invoice', 'Closed-won deals in this month',
+    [
+      _svFParent('Closed Won', f.closedWon, G1, 'closedWon'),
+      null, null, null
+    ],
+    null);
 
   /* Validation footer — full list of checks with deltas. */
   html += '<div style="margin-top:18px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px">';
@@ -102539,6 +102556,7 @@ function computeLongViewCohort(rawDeals, funnelMatrix, cohortKey) {
   var acSkip  = bk(), cdSkip  = bk();
   var hrAll   = bk();
   var acSkipHR = bk(), cdSkipHR = bk();
+  var paidRF = bk(), paidSkipPath = bk();
   var closedWon = bk();
 
   cohortDeals.forEach(function(d){
@@ -102572,6 +102590,16 @@ function computeLongViewCohort(rawDeals, funnelMatrix, cohortKey) {
       if (d.acAttendanceRaw === 'AC Skip') add(acSkipHR, k, d);
       if (d.cdAttendanceRaw === 'CD Skip') add(cdSkipHR, k, d);
     }
+    /* Paid RF (event-month by paidDate) + the skip-path subset: cohort deals that
+       paid AFTER skipping AC or CD. Per Arnold — clients can bypass step 2 or 3 and
+       still pay; we want that fast-track visible in the cohort report. */
+    if (d.paidDate) {
+      var pk = d.paidDate.slice(0, 7);
+      add(paidRF, pk, d);
+      if (d.acAttendanceRaw === 'AC Skip' || d.cdAttendanceRaw === 'CD Skip') {
+        add(paidSkipPath, pk, d);
+      }
+    }
     if (d.closeDate && d.stageId === SV_FUNNEL_STAGE_CLOSED_WON) {
       add(closedWon, d.closeDate.slice(0, 7), d);
     }
@@ -102601,6 +102629,10 @@ function computeLongViewCohort(rawDeals, funnelMatrix, cohortKey) {
       pct: { num: acSkipHR.total, den: acSkip.total, label: 'AC Skip → H&R' } },
     { label: 'CD Skip H&R',           bucket: cdSkipHR, dealsKey: 'cdSkipHR',
       pct: { num: cdSkipHR.total, den: cdSkip.total, label: 'CD Skip → H&R' } },
+    { label: 'Paid RF',               bucket: paidRF,   dealsKey: 'paidRF',
+      pct: { num: paidRF.total, den: totalLeads, label: 'Lead → Paid RF' } },
+    { label: 'Paid (Skip Path)',      bucket: paidSkipPath, dealsKey: 'paidSkipPath', highlight: true,
+      pct: { num: paidSkipPath.total, den: paidRF.total, label: 'Skip-path share of Paid RF' } },
     { label: 'Closed Won',            bucket: closedWon, dealsKey: 'closedWon',
       pct: { num: closedWon.total, den: totalLeads,   label: 'Lead → Closed Won' } },
   ];
@@ -102663,7 +102695,8 @@ function renderLongViewCohortFor(cohortKey) {
   var bodyHtml = '';
   c.rows.forEach(function(r, rowIdx){
     var b = r.bucket;
-    var rowBg = (rowIdx === 0) ? 'background:rgba(229,6,149,0.08);font-weight:700' : '';
+    var rowBg = (rowIdx === 0) ? 'background:rgba(229,6,149,0.08);font-weight:700'
+              : (r.highlight ? 'background:rgba(202,138,4,0.10)' : '');
     bodyHtml += '<tr style="' + rowBg + '">';
     bodyHtml += '<td style="position:sticky;left:0;background:var(--surface);font-weight:600;border-right:1px solid var(--border)">' + _rdEsc(r.label) + '</td>';
     c.months.forEach(function(mo){
