@@ -102184,41 +102184,36 @@ function validateSimpleFunnel(f) {
   return checks;
 }
 
-/* ── Rendering helpers — equal 5-col waterfall grid per Arnold's feedback ── */
-/* Each row: [200px label] [1fr tile] [1fr tile] [1fr tile] [1fr tile] [60px validation] */
-function _svFCell(label, count, parent, color, dealsKey) {
-  var pct  = parent > 0 ? ((count / parent) * 100).toFixed(2) + '%' : '';
-  var bg   = count > 0 ? color : 'var(--surface2)';
-  var tcol = count > 0 ? '#fff' : 'var(--muted)';
-  return '<button type="button" onclick="showSvFunnelDeals(\'' + dealsKey + '\', \'' + _mpEsc(label) + '\')" '
-       + 'style="background:' + bg + ';color:' + tcol + ';'
-       + 'border:1px solid var(--border);border-radius:8px;padding:14px 10px;cursor:' + (count > 0 ? 'pointer' : 'default') + ';'
-       + 'transition:opacity .15s;text-align:center;display:flex;flex-direction:column;justify-content:center;min-height:88px">'
-       + '<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.95;margin-bottom:6px">' + _mpEsc(label) + '</div>'
-       + '<div style="font-size:22px;font-weight:800;line-height:1">' + count + '</div>'
-       + (pct ? '<div style="font-size:10px;opacity:.75;margin-top:4px">' + pct + '</div>' : '')
-       + '</button>';
+/* ── Rendering helpers — matches Arnold's spreadsheet waterfall positioning ──
+   Each row: [200px label] [50px spacer] [50px spacer] [1fr tile] [1fr tile] [1fr tile] [1fr tile]
+   Tile = 3 stacked parts: header text (optional), colored value cell, percentage. */
+function _svFCell(headerText, count, parent, color, dealsKey) {
+  var pct      = parent > 0 ? ((count / parent) * 100).toFixed(2) + '%' : '';
+  var hasValue = count > 0;
+  var cursor   = hasValue ? 'pointer' : 'default';
+  return '<div style="display:flex;flex-direction:column;gap:4px;min-width:0">'
+       + (headerText ? '<div style="font-size:11px;font-weight:600;text-align:center;color:var(--text);margin-bottom:2px">' + _mpEsc(headerText) + '</div>' : '<div style="height:0"></div>')
+       + '<button type="button" onclick="showSvFunnelDeals(\'' + dealsKey + '\', \'' + _mpEsc(headerText || dealsKey) + '\')" '
+       + 'style="background:' + color + ';color:#0a0a0a;border:1px solid rgba(0,0,0,0.18);'
+       + 'border-radius:4px;padding:14px 8px;cursor:' + cursor + ';font-size:22px;font-weight:800;line-height:1;'
+       + 'width:100%;text-align:center;font-family:inherit">' + count + '</button>'
+       + (pct ? '<div style="font-size:11px;color:var(--muted);text-align:center;margin-top:2px">' + pct + '</div>' : '<div style="height:15px"></div>')
+       + '</div>';
 }
-/* Parent tile: same shape but no % (it's the root of the row). */
-function _svFParent(label, count, color, dealsKey) {
-  return _svFCell(label, count, 0, color, dealsKey);
+/* Parent tile (single-tile row, no header above tile). */
+function _svFParent(count, parent, color, dealsKey) {
+  return _svFCell('', count, parent, color, dealsKey);
 }
 function _svFEmpty() { return '<div></div>'; }
 
 /* tilesArr must have exactly 4 elements (cell HTML strings or null/empty). */
-function _svFRow(rowLabel, rowSub, tilesArr, validation) {
-  var html = '<div style="display:grid;grid-template-columns:200px repeat(4, 1fr) 60px;gap:10px;align-items:stretch;padding:10px 0;border-top:1px solid var(--border)">';
-  html += '<div style="align-self:center"><div style="font-size:13px;font-weight:700;color:var(--text)">' + _mpEsc(rowLabel) + '</div>';
-  if (rowSub) html += '<div style="font-size:11px;color:var(--muted);margin-top:3px">' + _mpEsc(rowSub) + '</div>';
+function _svFRow(rowLabel, rowSub, tilesArr) {
+  var html = '<div style="display:grid;grid-template-columns:200px 50px 50px repeat(4, 1fr);gap:10px;align-items:start;padding:14px 0;border-top:1px solid var(--border)">';
+  html += '<div style="padding-top:18px"><div style="font-size:13px;font-weight:700;color:var(--text)">' + _mpEsc(rowLabel) + '</div>';
+  if (rowSub) html += '<div style="font-size:11px;font-style:italic;color:var(--muted);margin-top:3px">' + _mpEsc(rowSub) + '</div>';
   html += '</div>';
+  html += '<div></div><div></div>';  /* two spacer columns */
   for (var i = 0; i < 4; i++) html += (tilesArr[i] || _svFEmpty());
-  if (validation) {
-    var icon = validation.ok ? '<span style="color:var(--green);font-size:18px" title="Reconciles">&#x2713;</span>'
-                              : '<span style="color:var(--red);font-size:13px;font-weight:700" title="Mismatch: sum=' + validation.sum + ', parent=' + validation.parent + '">&#x26A0; Δ' + (validation.delta > 0 ? '+' : '') + validation.delta + '</span>';
-    html += '<div style="align-self:center;text-align:center">' + icon + '</div>';
-  } else {
-    html += '<div></div>';
-  }
   html += '</div>';
   return html;
 }
@@ -102296,90 +102291,81 @@ function renderSvFunnelFor(monthKey) {
     }
   }
 
-  /* Color palette per user spec — matching greens for progression, others for drop-off. */
-  var G1 = '#16a34a';  /* darkest green: top success */
-  var G2 = '#22c55e';
-  var G3 = '#4ade80';
-  var G4 = '#86efac';
-  var G5 = '#bbf7d0';  /* lightest green */
-  var YEL = '#ca8a04'; /* no show */
-  var ORG = '#ea580c'; /* unqualified */
-  var BLU = '#3b82f6'; /* skip */
-  var GRY = '#525252'; /* scheduled / pending */
-  var RED = '#dc2626'; /* closed lost */
+  /* Color palette — Arnold's spreadsheet pastels for high contrast on the dark theme. */
+  var GREEN = '#86efac';  /* success / completed / booked / paid / won */
+  var YEL   = '#fde047';  /* no show */
+  var GRY   = '#d4d4d4';  /* scheduled / pending */
+  var TAN   = '#fed7aa';  /* not booked */
+  var RED   = '#fda4af';  /* closed lost / unqualified */
+  var BLU   = '#bfdbfe';  /* skip */
+
+  /* DCs Booked % uses the cohort's BD-Lead contact count as denominator (best proxy
+     for 'valid leads' until/unless we start fetching the strict validity count). */
+  var fm     = (REPORT.longView && REPORT.longView.funnelMatrix) || [];
+  var fmEntry = fm.filter(function(m){ return m.key === monthKey; })[0];
+  var validLeadDenom = fmEntry ? (fmEntry.rawLeads || 0) : 0;
 
   var html = '';
 
-  /* Waterfall: each row uses a 5-col equal grid. Booked / parent tile lives in col 1,
-     result splits fill cols 2-4, validation icon in col 5. */
+  /* Row 1 — DCs BOOKED (single tile, no internal header) */
+  html += _svFRow('DCs BOOKED', '*[DEALS] view in HS', [
+    _svFParent(f.dcBooked, validLeadDenom, GREEN, 'dcBooked'),
+    null, null, null
+  ]);
 
-  /* DC Funnel: DCs Booked + DC Result (Completed + No Show + Scheduled) */
-  html += _svFRow('DC Funnel', 'DCs Booked → result split',
-    [
-      _svFParent('DCs Booked',  f.dcBooked,                G1, 'dcBooked'),
-      _svFCell('DC Completed',  f.dcCompleted, f.dcBooked, G2, 'dcCompleted'),
-      _svFCell('DC No Show',    f.dcNoShow,    f.dcBooked, YEL, 'dcNoShow'),
-      _svFCell('DC Scheduled',  f.dcScheduled, f.dcBooked, GRY, 'dcScheduled')
-    ],
-    checks[0]);
+  /* Row 2 — DC result: Completed | No Show | Scheduled */
+  html += _svFRow('DC result', null, [
+    _svFCell('DC COMPLETED',  f.dcCompleted, f.dcBooked, GREEN, 'dcCompleted'),
+    _svFCell('DC NO SHOW',    f.dcNoShow,    f.dcBooked, YEL,   'dcNoShow'),
+    _svFCell('DC SCHEDULED*', f.dcScheduled, f.dcBooked, GRY,   'dcScheduled'),
+    null
+  ]);
 
-  /* DC Completed → next-stage breakdown (4 splits, no parent tile needed: header tells the story) */
-  html += _svFRow('DC Completed Split', 'ACs Booked + ACs Skip + ACs Not Booked + DC Unqualified = DC Completed',
-    [
-      _svFCell('ACs Booked',    f.acsBooked,      f.dcCompleted, G3,  'acsBooked'),
-      _svFCell('ACs Skip',      f.acsSkip,        f.dcCompleted, BLU, 'acsSkip'),
-      _svFCell('ACs Not Booked', f.acsNotBooked,  f.dcCompleted, GRY, 'acsNotBooked'),
-      _svFCell('DC Unqualified', f.dcUnqualified, f.dcCompleted, ORG, 'dcUnqualified')
-    ],
-    checks[1]);
+  /* Row 3 — ACs BOOKED split: Booked | Not Booked | DC Unqualified | ACs Skip */
+  html += _svFRow('ACs BOOKED', null, [
+    _svFCell('ACs BOOKED',     f.acsBooked,     f.dcCompleted, GREEN, 'acsBooked'),
+    _svFCell('ACs NOT BOOKED', f.acsNotBooked,  f.dcCompleted, TAN,   'acsNotBooked'),
+    _svFCell('DC UNQUALIFIED', f.dcUnqualified, f.dcCompleted, RED,   'dcUnqualified'),
+    _svFCell('ACs Skip',       f.acsSkip,       f.dcCompleted, BLU,   'acsSkip')
+  ]);
 
-  /* AC Funnel: ACs Booked + AC Result */
-  html += _svFRow('AC Funnel', 'ACs Booked → result split',
-    [
-      _svFParent('ACs Booked',  f.acsBooked,                G3, 'acsBooked'),
-      _svFCell('AC Completed',  f.acCompleted, f.acsBooked, G3, 'acCompleted'),
-      _svFCell('AC No Show',    f.acNoShow,    f.acsBooked, YEL, 'acNoShow'),
-      _svFCell('AC Scheduled',  f.acScheduled, f.acsBooked, GRY, 'acScheduled')
-    ],
-    checks[2]);
+  /* Row 4 — AC result: Completed | No Show | Scheduled */
+  html += _svFRow('AC result', null, [
+    _svFCell('AC COMPLETED',  f.acCompleted, f.acsBooked, GREEN, 'acCompleted'),
+    _svFCell('AC NO SHOW',    f.acNoShow,    f.acsBooked, YEL,   'acNoShow'),
+    _svFCell('AC SCHEDULED*', f.acScheduled, f.acsBooked, GRY,   'acScheduled'),
+    null
+  ]);
 
-  /* AC Completed → CDs breakdown */
-  html += _svFRow('AC Completed Split', 'CDs Booked + CDs Skip + CDs Not Booked + Closed Lost = AC Completed',
-    [
-      _svFCell('CDs Booked',     f.cdsBooked,       f.acCompleted, G4,  'cdsBooked'),
-      _svFCell('CDs Skip',       f.cdsSkip,         f.acCompleted, BLU, 'cdsSkip'),
-      _svFCell('CDs Not Booked', f.cdsNotBooked,    f.acCompleted, GRY, 'cdsNotBooked'),
-      _svFCell('Closed Lost',    f.closedLostFromAC, f.acCompleted, RED, 'closedLostFromAC')
-    ],
-    checks[3]);
+  /* Row 5 — CDs BOOKED split: Booked | Not Booked | Closed Lost | CDs Skip */
+  html += _svFRow('CDs BOOKED', null, [
+    _svFCell('CDs BOOKED',     f.cdsBooked,        f.acCompleted, GREEN, 'cdsBooked'),
+    _svFCell('CDs NOT BOOKED', f.cdsNotBooked,     f.acCompleted, TAN,   'cdsNotBooked'),
+    _svFCell('CLOSED LOST',    f.closedLostFromAC, f.acCompleted, RED,   'closedLostFromAC'),
+    _svFCell('CDs Skip',       f.cdsSkip,          f.acCompleted, BLU,   'cdsSkip')
+  ]);
 
-  /* CD Funnel: CDs Booked + CD Result */
-  html += _svFRow('CD Funnel', 'CDs Booked → result split',
-    [
-      _svFParent('CDs Booked',  f.cdsBooked,                G4, 'cdsBooked'),
-      _svFCell('CD Completed',  f.cdCompleted,      f.cdsBooked, G4,  'cdCompleted'),
-      _svFCell('CD No Show',    f.cdNoShow,         f.cdsBooked, YEL, 'cdNoShow'),
-      _svFCell('CD Scheduled',  f.cdScheduled,      f.cdsBooked, GRY, 'cdScheduled')
-    ],
-    checks[4]);
+  /* Row 6 — CDs COMPLETED (CD result): Completed | No Show | Scheduled | Closed Lost */
+  html += _svFRow('CDs COMPLETED', null, [
+    _svFCell('CD COMPLETED',  f.cdCompleted,      f.cdsBooked, GREEN, 'cdCompleted'),
+    _svFCell('CD NO SHOW',    f.cdNoShow,         f.cdsBooked, YEL,   'cdNoShow'),
+    _svFCell('CD SCHEDULED*', f.cdScheduled,      f.cdsBooked, GRY,   'cdScheduled'),
+    _svFCell('CLOSED LOST',   f.closedLostFromCD, f.cdsBooked, RED,   'closedLostFromCD')
+  ]);
 
-  /* Moved to H&R — three event-month / cohort outcomes (3 tiles + 1 empty slot). */
-  html += _svFRow('Moved to H&R', 'Skip-paths and Paid RF (independent of DC funnel)',
-    [
-      _svFCell('AC Skip → H&R', f.acsSkipHR, f.acsSkip, G5,  'acsSkipHR'),
-      _svFCell('DC Skip → H&R', f.dcSkipHR,  0,         BLU, 'dcSkipHR'),
-      _svFCell('Paid RF',        f.paidRF,    0,         G1,  'paidRF'),
-      null
-    ],
-    null);
+  /* Row 7 — moved to H&R stage: Paid RF | ACs Skip H&R | CDs Skip H&R */
+  html += _svFRow('*moved to H&R stage', null, [
+    _svFCell('PAID RF',       f.paidRF,    0, GREEN, 'paidRF'),
+    _svFCell('ACs Skip H&R',  f.acsSkipHR, 0, BLU,   'acsSkipHR'),
+    _svFCell('CDs Skip H&R',  f.cdsSkipHR, 0, BLU,   'cdsSkipHR'),
+    null
+  ]);
 
-  /* Final outcome — Closed Won alone */
-  html += _svFRow('Paid First Invoice', 'Closed-won deals in this month',
-    [
-      _svFParent('Closed Won', f.closedWon, G1, 'closedWon'),
-      null, null, null
-    ],
-    null);
+  /* Row 8 — *Paid First Invoice: CLOSED WON */
+  html += _svFRow('*Paid First Invoice', null, [
+    _svFCell('CLOSED WON', f.closedWon, 0, GREEN, 'closedWon'),
+    null, null, null
+  ]);
 
   /* Validation footer — full list of checks with deltas. */
   html += '<div style="margin-top:18px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px">';
