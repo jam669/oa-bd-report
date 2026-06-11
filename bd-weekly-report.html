@@ -36,23 +36,35 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     :root {
-      --bg:       #0f1117;
-      --surface:  #1a1d27;
-      --surface2: #232738;
-      --border:   #2e3248;
-      --accent:   #e50695;   /* OA magenta */
-      --accent2:  #1e1ea0;   /* OA deep blue */
-      --green:    #22c55e;
-      --yellow:   #f59e0b;
+      /* Palette mirrors jam669.github.io/rate-calculator so the BD dashboard
+         shares OA's brand look (deep navy + brightened OA blue + OA magenta). */
+      --bg:       #080c24;   /* deep navy base */
+      --surface:  #121734;   /* panel */
+      --surface2: #1b2147;   /* alt panel / inputs */
+      --border:   #2b3360;
+      --accent:   #3b5bfe;   /* brightened OA blue — primary */
+      --accent2:  #c026d3;   /* OA magenta — secondary */
+      --brand:    #001E94;   /* OA blue (logo) */
+      --green:    #34d399;
+      --yellow:   #f5a623;
       --red:      #ef4444;
       --cyan:     #06b6d4;
       --orange:   #f97316;
-      --text:     #e2e8f0;
-      --muted:    #8892a4;
+      --text:     #eef1fb;
+      --muted:    #9098be;
       --radius:   12px;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background:
+        radial-gradient(900px 480px at 12% -8%, rgba(0,30,148,.55), transparent 60%),
+        radial-gradient(820px 460px at 102% 2%, rgba(192,38,211,.26), transparent 55%),
+        var(--bg);
+      background-attachment: fixed;
+      color: var(--text);
+      min-height: 100vh;
+    }
 
     /* PASSWORD GATE */
     #oa-gate {
@@ -157,7 +169,7 @@
       font-size: 13.5px; color: var(--muted); transition: all .15s; user-select: none;
     }
     .nav-item:hover { background: var(--surface2); color: var(--text); }
-    .nav-item.active { background: rgba(229,6,149,.15); color: var(--accent); font-weight: 600; }
+    .nav-item.active { background: rgba(59,91,254,.15); color: var(--accent); font-weight: 600; }
     .nav-icon { font-size: 16px; width: 20px; text-align: center; }
     .sidebar-divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
     .sidebar-stat { padding: 0 12px; font-size: 12.5px; color: var(--muted); margin-bottom: 8px; display: flex; justify-content: space-between; }
@@ -250,7 +262,7 @@
     .badge-green  { background: rgba(34,197,94,.15);  color: var(--green); }
     .badge-yellow { background: rgba(245,158,11,.15); color: var(--yellow); }
     .badge-red    { background: rgba(239,68,68,.15);  color: var(--red); }
-    .badge-blue   { background: rgba(229,6,149,.15); color: var(--accent); }
+    .badge-blue   { background: rgba(59,91,254,.15); color: var(--accent); }
     .badge-cyan   { background: rgba(6,182,212,.15);  color: var(--cyan); }
     .badge-orange { background: rgba(249,115,22,.15); color: var(--orange); }
     .badge-muted  { background: rgba(136,146,164,.12); color: var(--muted); }
@@ -311,7 +323,7 @@
     .action-num.fix    { background: rgba(239,68,68,.15);  color: var(--red); }
     .action-num.stop   { background: rgba(249,115,22,.15); color: var(--orange); }
     .action-num.double { background: rgba(34,197,94,.15);  color: var(--green); }
-    .action-num.track  { background: rgba(229,6,149,.15); color: var(--accent); }
+    .action-num.track  { background: rgba(59,91,254,.15); color: var(--accent); }
     .action-num.improve { background: rgba(245,158,11,.15); color: var(--yellow); }
     .action-body { flex: 1; }
     .action-tag {
@@ -369,7 +381,7 @@
       font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap;
     }
     .tier-close   { background: rgba(34,197,94,.15);  color: var(--green); }
-    .tier-advance { background: rgba(229,6,149,.15); color: var(--accent); }
+    .tier-advance { background: rgba(59,91,254,.15); color: var(--accent); }
     .tier-qualify { background: rgba(245,158,11,.15); color: var(--yellow); }
     .tier-prospect{ background: rgba(6,182,212,.12);  color: var(--cyan); }
     .tier-section { margin-bottom: 24px; }
@@ -378,7 +390,7 @@
       padding: 10px 16px; border-radius: 8px;
     }
     .tier-section-header.hdr-close   { background: rgba(34,197,94,.07);  border-left: 3px solid var(--green); }
-    .tier-section-header.hdr-advance { background: rgba(229,6,149,.07); border-left: 3px solid var(--accent); }
+    .tier-section-header.hdr-advance { background: rgba(59,91,254,.07); border-left: 3px solid var(--accent); }
     .tier-section-header.hdr-qualify { background: rgba(245,158,11,.07); border-left: 3px solid var(--yellow); }
     .tier-section-header.hdr-prospect{ background: rgba(6,182,212,.07);  border-left: 3px solid var(--cyan); }
     .tier-section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
@@ -395,7 +407,7 @@
       display: flex; gap: 12px; align-items: flex-start;
       transition: border-color .15s;
     }
-    .outreach-card:hover { border-color: rgba(229,6,149,.4); }
+    .outreach-card:hover { border-color: rgba(59,91,254,.4); }
     .rank-badge {
       width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
       background: var(--surface2); border: 1px solid var(--border);
@@ -411,16 +423,16 @@
     .outreach-why { font-size: 13px; color: var(--text); margin-bottom: 4px; line-height: 1.55; }
     .outreach-action {
       font-size: 13px; color: var(--text); margin-bottom: 10px; line-height: 1.55;
-      padding: 8px 12px; background: rgba(229,6,149,.06);
+      padding: 8px 12px; background: rgba(59,91,254,.06);
       border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0;
     }
     .hs-link {
       display: inline-block; font-size: 11.5px; font-weight: 600;
       color: var(--accent); text-decoration: none;
-      padding: 4px 10px; border: 1px solid rgba(229,6,149,.3);
+      padding: 4px 10px; border: 1px solid rgba(59,91,254,.3);
       border-radius: 6px; transition: all .15s;
     }
-    .hs-link:hover { background: rgba(229,6,149,.1); }
+    .hs-link:hover { background: rgba(59,91,254,.1); }
     .outreach-no-data {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius); padding: 32px 20px;
@@ -435,7 +447,7 @@
     .pd-group { margin-bottom: 28px; }
     .pd-group-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding: 10px 16px; border-radius: 8px; }
     .pd-group-header.hdr-hot       { background: rgba(34,197,94,.07);  border-left: 3px solid var(--green); }
-    .pd-group-header.hdr-advancing { background: rgba(229,6,149,.07); border-left: 3px solid var(--accent); }
+    .pd-group-header.hdr-advancing { background: rgba(59,91,254,.07); border-left: 3px solid var(--accent); }
     .pd-group-header.hdr-stalled   { background: rgba(245,158,11,.07); border-left: 3px solid var(--yellow); }
     .pd-group-header.hdr-closed    { background: rgba(148,163,184,.07);border-left: 3px solid var(--muted); }
     .pd-group-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
@@ -446,7 +458,7 @@
     .pd-deal-table tr:last-child td { border-bottom: none; }
     .pd-stage-badge { display: inline-block; padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 700; }
     .pd-stage-hot        { background: rgba(34,197,94,.15);  color: var(--green); }
-    .pd-stage-advance    { background: rgba(229,6,149,.15); color: var(--accent); }
+    .pd-stage-advance    { background: rgba(59,91,254,.15); color: var(--accent); }
     .pd-stage-stalled    { background: rgba(245,158,11,.15); color: var(--yellow); }
     .pd-stage-closed-won { background: rgba(34,197,94,.25);  color: var(--green); }
     .pd-stage-closed-lost{ background: rgba(239,68,68,.15);  color: var(--red); }
@@ -102319,10 +102331,10 @@ function renderFunnel(d) {
   var wrap = document.getElementById('funnel-visual');
   if (!wrap) return;
   var stages = [
-    { label: 'Contacts Created', count: d.contacts, color: '#1e1ea0', pct: 100 },
+    { label: 'Contacts Created', count: d.contacts, color: '#3b5bfe', pct: 100 },
     { label: 'Valid Leads',       count: d.valid,    color: '#0891b2', pct: Math.round(d.valid / d.contacts * 100) },
     { label: 'Connected',         count: d.connected,color: '#16a34a', pct: Math.round(d.connected / d.contacts * 100) },
-    { label: 'Deals Created',     count: d.deals,    color: '#e50695', pct: null }
+    { label: 'Deals Created',     count: d.deals,    color: '#c026d3', pct: null }
   ];
   var labels = ['', pct(d.valid, d.contacts) + ' of contacts', pct(d.connected, d.valid) + ' of valid', 'All pipelines'];
   var html = '';
@@ -102425,7 +102437,7 @@ function buildCharts() {
     data: {
       labels: [d16.label, d17.label],
       datasets: [
-        { label: 'Contacts', data: [d16.contacts, d17.contacts], borderColor: '#4f6ef7', backgroundColor: 'rgba(229,6,149,.08)', tension: .4, fill: true, pointBackgroundColor: '#4f6ef7' },
+        { label: 'Contacts', data: [d16.contacts, d17.contacts], borderColor: '#4f6ef7', backgroundColor: 'rgba(59,91,254,.08)', tension: .4, fill: true, pointBackgroundColor: '#4f6ef7' },
         { label: 'Valid',    data: [d16.valid,    d17.valid],    borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,.08)',  tension: .4, fill: true, pointBackgroundColor: '#06b6d4' },
         { label: 'Connected',data: [d16.connected,d17.connected],borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,.08)', tension: .4, fill: true, pointBackgroundColor: '#22c55e' }
       ]
@@ -102462,7 +102474,7 @@ function buildCharts() {
     data: {
       labels: ['Contacts', 'Valid', 'Connected', 'Deals'],
       datasets: [
-        { label: d16.label, data: [d16.contacts, d16.valid, d16.connected, d16.deals], backgroundColor: 'rgba(229,6,149,.5)', borderRadius: 4 },
+        { label: d16.label, data: [d16.contacts, d16.valid, d16.connected, d16.deals], backgroundColor: 'rgba(59,91,254,.5)', borderRadius: 4 },
         { label: d17.label, data: [d17.contacts, d17.valid, d17.connected, d17.deals], backgroundColor: 'rgba(34,197,94,.7)',  borderRadius: 4 }
       ]
     },
@@ -102864,7 +102876,7 @@ function renderDealsMonthly() {
       labels: data.map(function(m){ return m.label; }),
       datasets: [
         { label: 'Total Deals',  data: data.map(function(m){ return (m.dealProgress||{}).total       || 0; }),
-          backgroundColor: 'rgba(229,6,149,0.7)', borderColor: '#4f6ef7', borderWidth: 1, yAxisID: 'y' },
+          backgroundColor: 'rgba(59,91,254,0.7)', borderColor: '#4f6ef7', borderWidth: 1, yAxisID: 'y' },
         { label: 'DC Attended',  data: data.map(function(m){ return (m.dealProgress||{}).dcAttended  || 0; }),
           backgroundColor: 'rgba(6,182,212,0.7)',  borderColor: '#06b6d4', borderWidth: 1, yAxisID: 'y' },
         { label: 'AC Attended',  data: data.map(function(m){ return (m.dealProgress||{}).acAttended  || 0; }),
@@ -103798,7 +103810,7 @@ function renderLongViewCohortFor(cohortKey) {
   var bodyHtml = '';
   c.rows.forEach(function(r, rowIdx){
     var b = r.bucket;
-    var rowBg = (rowIdx === 0) ? 'background:rgba(229,6,149,0.08);font-weight:700'
+    var rowBg = (rowIdx === 0) ? 'background:rgba(59,91,254,0.08);font-weight:700'
               : (r.highlight ? 'background:rgba(202,138,4,0.10)' : '');
     bodyHtml += '<tr style="' + rowBg + '">';
     bodyHtml += '<td style="position:sticky;left:0;background:var(--surface);font-weight:600;border-right:1px solid var(--border)">' + _rdEsc(r.label) + '</td>';
