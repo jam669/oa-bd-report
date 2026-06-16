@@ -162,7 +162,10 @@ def _week_range_for_anchor(anchor_dt):
                     hour=23, minute=59, second=59, microsecond=0)
     start     = (end - timedelta(days=6)).replace(
                     hour=0, minute=0, second=0, microsecond=0)
-    week_num  = start.isocalendar()[1]
+    # Week number from the END date's ISO week (Tuesday) — matches "this week"
+    # in normal usage. A Wed–Tue window straddles two ISO weeks, and the end
+    # date is the one a reader thinks of as "this week's number".
+    week_num  = end.isocalendar()[1]
 
     mo = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
     if start.month == end.month:
