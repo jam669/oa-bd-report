@@ -154,18 +154,20 @@ def is_connected(lead_status):
 # ── DATE HELPERS ──────────────────────────────────────────────────────────────
 
 def _week_range_for_anchor(anchor_dt):
-    """Return (start_dt, end_dt, week_num, dates_label) for a 7-day Wed–Tue window
-    ending on the Tuesday <= anchor_dt. Manila time."""
+    """Return (start_dt, end_dt, week_num, dates_label) for the Wed–Tue window
+    CONTAINING anchor_dt. So Wed Jun 10 anchors to Jun 10–16, not Jun 3–9.
+    Manila time."""
     wd        = anchor_dt.weekday()          # Mon=0, Tue=1, …, Sun=6
-    days_back = (wd - 1) % 7                  # Tue=0, Wed=1, …, Mon=6
-    end       = (anchor_dt - timedelta(days=days_back)).replace(
-                    hour=23, minute=59, second=59, microsecond=0)
-    start     = (end - timedelta(days=6)).replace(
+    # Days back to the Wednesday at the start of this Wed-Tue cycle.
+    # Wed=0, Thu=1, Fri=2, Sat=3, Sun=4, Mon=5, Tue=6
+    days_back = (wd - 2) % 7
+    start     = (anchor_dt - timedelta(days=days_back)).replace(
                     hour=0, minute=0, second=0, microsecond=0)
-    # Week number from the END date's ISO week (Tuesday) — matches "this week"
-    # in normal usage. A Wed–Tue window straddles two ISO weeks, and the end
-    # date is the one a reader thinks of as "this week's number".
-    week_num  = end.isocalendar()[1]
+    end       = (start + timedelta(days=6)).replace(
+                    hour=23, minute=59, second=59, microsecond=0)
+    # Sequential count by the START date's ISO week (Wednesday). Matches the
+    # user's mental model: W23 = Jun 3–9, W24 = Jun 10–16, W25 = Jun 17–23, etc.
+    week_num  = start.isocalendar()[1]
 
     mo = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
     if start.month == end.month:
