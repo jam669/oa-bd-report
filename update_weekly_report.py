@@ -178,11 +178,39 @@ def _week_range_for_anchor(anchor_dt):
     return start, end, week_num, dates_label
 
 def current_week_range():
-    """Report-week range, anchored to the most recent Tuesday in Manila time.
-    Cron runs Tuesday 09:00 Manila and reports the Wed–Tue week ending that Tuesday.
-    Manual mid-week runs report the most recently completed Wed–Tue week so existing
-    weeks never get a partial-data overwrite and tab dates never gap."""
+    """Report-week range = the Wed–Tue cycle CONTAINING today (Manila).
+    Cron runs Tuesday 09:00 Manila and lands on the last day of the cycle, so
+    it captures a complete week. Manual mid-week runs report the current
+    in-progress week (partial data is fine — overwrites itself on next cron)."""
     return _week_range_for_anchor(datetime.now(MANILA_TZ))
+
+def _verify_week_math():
+    """Sanity check the week-range formula. Runs once at module import so any
+    accidental edit to _week_range_for_anchor fails loudly here, not silently
+    mid-Tuesday with a wrong W# label.
+
+    Convention (do not change without re-relabeling existing data):
+      • Each report week is a Wed-Tue 7-day window.
+      • The W# is the ISO week of the START Wednesday.
+      • current_week_range() picks the cycle containing TODAY, not the
+        most recently completed one.
+      So Wed Jun 10 2026 → W24 (Jun 10–16); Tue Jun 16 2026 → also W24.
+    """
+    def _ck(iso, exp_start, exp_end, exp_wk):
+        anchor = datetime.fromisoformat(iso).replace(tzinfo=MANILA_TZ)
+        s, e, wk, _ = _week_range_for_anchor(anchor)
+        sd, ed = s.strftime('%Y-%m-%d'), e.strftime('%Y-%m-%d')
+        assert (sd, ed, wk) == (exp_start, exp_end, exp_wk), (
+            f"week math regression at {iso}: got start={sd} end={ed} W{wk}, "
+            f"expected start={exp_start} end={exp_end} W{exp_wk}"
+        )
+    _ck('2026-06-09', '2026-06-03', '2026-06-09', 23)  # Tue, last day of W23
+    _ck('2026-06-10', '2026-06-10', '2026-06-16', 24)  # Wed, first day of W24
+    _ck('2026-06-13', '2026-06-10', '2026-06-16', 24)  # Sat mid-week, still W24
+    _ck('2026-06-16', '2026-06-10', '2026-06-16', 24)  # Tue cron, end of W24
+    _ck('2026-06-17', '2026-06-17', '2026-06-23', 25)  # Wed, advance to W25
+
+_verify_week_math()
 
 def to_iso(dt):
     return dt.isoformat()
@@ -1746,7 +1774,9 @@ def main():
     print("-" * 55)
 
     start, end, week_num, dates_label = current_week_range()
-    print(f"  Week {week_num}: {dates_label} ({start.date()} to {end.date()})")
+    print(f"  Today (Manila): {today.strftime('%A %Y-%m-%d %H:%M %Z')}")
+    print(f"  Report week:    W{week_num} ({dates_label}) {start.date()} -> {end.date()}")
+    print(f"  Anchor:         Wed-Tue cycle containing today  (W# = start ISO week)")
 
     # Weekly contacts
     print("\n[1/5] Fetching weekly contact stats…")

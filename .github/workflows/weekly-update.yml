@@ -1,9 +1,14 @@
 name: Weekly BD Report Update
 
 on:
-  # Every Tuesday at 09:00 Manila time (01:00 UTC)
   schedule:
+    # PRIMARY: Tuesday 09:00 Manila (01:00 UTC). GitHub may delay scheduled
+    # workflows during high load — this is the canonical slot.
     - cron: '0 1 * * 2'
+    # BACKUP: Tuesday 12:00 Manila (04:00 UTC). Safety net if the 01:00 slot
+    # is skipped or queued. The commit step is a no-op when data hasn't
+    # changed, so a successful primary makes this idempotent.
+    - cron: '0 4 * * 2'
   # Manual trigger — click "Run workflow" in GitHub Actions tab
   workflow_dispatch:
 
