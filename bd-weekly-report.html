@@ -1294,6 +1294,33 @@
         </div>
       </div>
 
+      <!-- Selected-month deal audit table — auto-updates with the funnel month dropdown -->
+      <div class="table-card" style="margin-bottom:24px">
+        <div class="table-header">
+          <h3>Deals in <span id="sv-month-deals-label">—</span></h3>
+          <span class="badge badge-muted"><span id="sv-month-deals-count">—</span> &middot; every deal counted anywhere in the funnel above</span>
+        </div>
+        <div style="max-height:60vh;overflow:auto">
+          <table style="font-size:12.5px">
+            <thead style="position:sticky;top:0;background:var(--surface);z-index:2">
+              <tr>
+                <th>Company</th>
+                <th>Deal Name</th>
+                <th>Deal Stage</th>
+                <th>DC Date</th>
+                <th>AC Date</th>
+                <th>Recruitment Fee Paid</th>
+                <th>First Invoice Paid</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="sv-month-deals-body">
+              <tr><td colspan="8" style="color:var(--muted)">Loading&hellip;</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Filter bar -->
       <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:18px">
         <input id="rd-search" type="text" placeholder="Search company / lead source…"
@@ -105416,6 +105443,78 @@ function renderSvFunnelFor(monthKey) {
   html += '</div>';
 
   setHTML('sv-funnel-body', html);
+
+  /* Render the selected-month audit table beneath the funnel. */
+  renderSvFunnelMonthDeals(monthKey, f);
+}
+
+/* ── Selected-month audit table ──
+   Lists every UNIQUE deal that contributes to any number in the funnel
+   above. Union of all deal sub-buckets returned by computeSimpleFunnel so
+   the row count equals the total deals reflected in this month's chart. */
+function _svCompanyFromDealName(dealName) {
+  if (!dealName) return '—';
+  /* OA convention: "{Company} - {Role}" — split on first ' - ' (en-dash too). */
+  var idx = dealName.indexOf(' - ');
+  if (idx < 0) idx = dealName.indexOf(' – ');
+  if (idx > 0) return dealName.slice(0, idx).trim();
+  return dealName;
+}
+
+function _svUnionDealsFromFunnel(funnel) {
+  var seen = {};
+  var out  = [];
+  var buckets = (funnel && funnel.deals) || {};
+  Object.keys(buckets).forEach(function(k){
+    (buckets[k] || []).forEach(function(d){
+      if (d && d.id && !seen[d.id]) { seen[d.id] = 1; out.push(d); }
+    });
+  });
+  return out;
+}
+
+function renderSvFunnelMonthDeals(monthKey, funnel) {
+  var body    = document.getElementById('sv-month-deals-body');
+  var counter = document.getElementById('sv-month-deals-count');
+  var label   = document.getElementById('sv-month-deals-label');
+  if (!body) return;
+
+  /* Look up the friendly month label from funnelMatrix. */
+  var fm = (REPORT.longView && REPORT.longView.funnelMatrix) || [];
+  var fmEntry = fm.filter(function(m){ return m.key === monthKey; })[0];
+  if (label) label.textContent = fmEntry ? fmEntry.label : monthKey;
+
+  var deals = _svUnionDealsFromFunnel(funnel);
+  /* Sort newest activity first — DC date desc, fallback to dealName. */
+  deals.sort(function(a, b){
+    var da = a.dcDate || a.paidDate || a.paidInvoice || '';
+    var db = b.dcDate || b.paidDate || b.paidInvoice || '';
+    if (da !== db) return db.localeCompare(da);
+    return (a.dealName || '').localeCompare(b.dealName || '');
+  });
+
+  if (counter) counter.textContent = deals.length + ' deal' + (deals.length === 1 ? '' : 's');
+
+  if (!deals.length) {
+    body.innerHTML = '<tr><td colspan="8" style="color:var(--muted);padding:14px">No deals contributed to this month\'s funnel.</td></tr>';
+    return;
+  }
+
+  var html = '';
+  deals.forEach(function(d){
+    var url = 'https://app.hubspot.com/contacts/44390857/record/0-3/' + d.id;
+    html += '<tr>';
+    html += '<td>' + _mpEsc(_svCompanyFromDealName(d.dealName)) + '</td>';
+    html += '<td style="font-weight:600;max-width:280px">' + _mpEsc(d.dealName || '—') + '</td>';
+    html += '<td><span class="pd-stage-badge pd-stage-default" style="font-size:10.5px">' + _mpEsc(d.stage || '—') + '</span></td>';
+    html += '<td>' + _mpEsc(d.dcDate    || '—') + '</td>';
+    html += '<td>' + _mpEsc(d.acDate    || '—') + '</td>';
+    html += '<td style="color:var(--yellow)">' + _mpEsc(d.paidDate    || '—') + '</td>';
+    html += '<td style="color:var(--green)">'  + _mpEsc(d.paidInvoice || '—') + '</td>';
+    html += '<td><a class="pd-hs-link" href="' + url + '" target="_blank">Open&nbsp;&#8599;</a></td>';
+    html += '</tr>';
+  });
+  body.innerHTML = html;
 }
 
 /* ── SIMPLE VIEW — monthly trend chart + breakdown table ── */
