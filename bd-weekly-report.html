@@ -105145,8 +105145,16 @@ function computeSimpleFunnel(rawDeals, monthKey) {
         && d.hrEntered && d.hrEntered.slice(0, 7) === monthKey;
   });
 
-  /* Paid RF + Closed Won + Signed SA — EVENT-MONTH totals across ALL deals.
-     A payment / SA / close-won in March can come from a deal whose DC was in Jan/Feb. */
+  /* Paid RF + Signed SA + Paid First Invoice — EVENT-MONTH totals across ALL deals.
+     A payment / SA / first-invoice landing in March can come from a deal whose DC
+     was in Jan/Feb. Each metric is bucketed by its own event date — DO NOT mix
+     them up:
+       paidRF       → paid_recruitment_date  (when the recruitment fee was paid)
+       signedSA     → pandadoc_signed        (when the SA was signed)
+       paidInvoice  → paid_first_invoice     (when the first invoice was paid)
+     The Simple View row labelled "*Paid First Invoice" uses paid_first_invoice,
+     NOT closeDate + stage=Closed Won. Those diverge whenever a deal is moved to
+     Closed Won this month but its first invoice was paid in a previous month. */
   var paidRF = (rawDeals || []).filter(function(d){
     return d.paidDate && d.paidDate.slice(0, 7) === monthKey;
   });
@@ -105154,7 +105162,7 @@ function computeSimpleFunnel(rawDeals, monthKey) {
     return d.saSigned && d.saSigned.slice(0, 7) === monthKey;
   });
   var closedWon = (rawDeals || []).filter(function(d){
-    return d.closeDate && d.closeDate.slice(0, 7) === monthKey && d.stageId === SV_FUNNEL_STAGE_CLOSED_WON;
+    return d.paidInvoice && d.paidInvoice.slice(0, 7) === monthKey;
   });
 
   return {
