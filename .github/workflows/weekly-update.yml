@@ -2,18 +2,28 @@ name: Weekly BD Report Update
 
 on:
   schedule:
-    # PRIMARY: Tuesday 09:00 Manila (01:00 UTC). GitHub may delay scheduled
-    # workflows during high load — this is the canonical slot.
+    # Target: report live by Tuesday 09:00 Manila. GitHub queues scheduled
+    # runs ~4-6h late on this repo (Sep-Oct 2026 runs landed 13:40-15:30
+    # for a 09:00 slot), so the EARLY slot fires at 03:00 Manila to land by ~09:00.
+    # Every run overwrites the current Wed-Tue week, so later slots just
+    # refresh the numbers with Tuesday-morning activity.
+    # EARLY: Tuesday 03:00 Manila (Mon 19:00 UTC) — still Tuesday in Manila,
+    # so it resolves to the correct week.
+    - cron: '0 19 * * 1'
+    # PRIMARY: Tuesday 09:00 Manila (01:00 UTC).
     - cron: '0 1 * * 2'
-    # BACKUP: Tuesday 12:00 Manila (04:00 UTC). Safety net if the 01:00 slot
-    # is skipped or queued. The commit step is a no-op when data hasn't
-    # changed, so a successful primary makes this idempotent.
+    # BACKUP: Tuesday 12:00 Manila (04:00 UTC).
     - cron: '0 4 * * 2'
   # Manual trigger — click "Run workflow" in GitHub Actions tab
   workflow_dispatch:
 
 permissions:
   contents: write
+
+# Delayed runs can pile up; run them one at a time so pushes don't collide.
+concurrency:
+  group: weekly-report
+  cancel-in-progress: false
 
 jobs:
   update:
