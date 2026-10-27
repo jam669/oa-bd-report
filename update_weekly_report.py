@@ -656,6 +656,40 @@ def fetch_deals_created_count(start, end):
     r = _hs_post(f"{BASE_URL}/crm/v3/objects/deals/search", body)
     return r.json().get("total", 0)
 
+def fetch_created_deals(start, end):
+    """Fetch BD pipeline deals created in [start, end], returning company list."""
+    filters = [
+        {"propertyName": "pipeline",   "operator": "EQ",  "value": BD_PIPELINE_ID},
+        {"propertyName": "createdate", "operator": "GTE", "value": to_iso(start)},
+        {"propertyName": "createdate", "operator": "LTE", "value": to_iso(end)},
+    ]
+    props = ["dealname", "createdate", "amount", "dealstage", "lead_source"]
+    results, after = [], None
+    while True:
+        body = {"filterGroups": [{"filters": filters}], "properties": props, "limit": 100}
+        if after:
+            body["after"] = after
+        r = _hs_post(f"{BASE_URL}/crm/v3/objects/deals/search", body)
+        data = r.json()
+        results.extend(data.get("results", []))
+        after = data.get("paging", {}).get("next", {}).get("after")
+        if not after:
+            break
+
+    deals = []
+    for d in results:
+        p = d.get("properties", {})
+        deals.append({
+            "id":         d["id"],
+            "company":    p.get("dealname", "Unknown"),
+            "createDate": (p.get("createdate") or "")[:10],
+            "amount":     p.get("amount", "") or "",
+            "leadSource": p.get("lead_source", "") or "",
+            "stage":      STAGE_LABELS.get(p.get("dealstage", ""), p.get("dealstage", "")),
+        })
+    deals.sort(key=lambda x: x["createDate"])
+    return deals
+
 # ── TOP 50 OUTREACH ───────────────────────────────────────────────────────────
 
 def fetch_top_50():
@@ -1793,6 +1827,7 @@ def main():
     # Weekly deal metrics
     print("\n[3/5] Counting weekly deal metrics…")
     deals_count = fetch_deals_created_count(start, end)
+    created_deals  = fetch_created_deals(start, end)
     dc_deals       = fetch_dc_deals(start, end)
     dc_count       = len(dc_deals)
     ac_deals       = fetch_ac_deals(start, end)
@@ -1879,6 +1914,7 @@ def main():
         "topAccounts":       top_accounts,
         "dealProgress":      weekly_deals_progress,
         "saSigned":          sa_signed,
+        "createdDeals":      created_deals,
         "dcCount":           dc_count,
         "dcDeals":           dc_deals,
         "acCount":           ac_count,

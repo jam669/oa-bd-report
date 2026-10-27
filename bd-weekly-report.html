@@ -653,6 +653,28 @@
         </div>
       </div>
 
+      <!-- DEALS CREATED COMPANY LIST -->
+      <div class="table-card" style="margin-bottom:28px" id="created-companies-card">
+        <div class="table-header">
+          <h3>Deals Created This Week</h3>
+          <span class="badge badge-muted" id="created-week-badge">W19</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Company / Deal</th>
+              <th>Lead Source</th>
+              <th>Created Date</th>
+              <th>Amount</th>
+              <th>Current Stage</th>
+            </tr>
+          </thead>
+          <tbody id="created-companies-body">
+            <tr><td colspan="6" style="color:var(--muted)">Loading&hellip;</td></tr>
+          </tbody>
+        </table>
+      </div>
       <!-- DISCOVERY CALLS COMPANY LIST -->
       <div class="table-card" style="margin-bottom:28px" id="dc-companies-card">
         <div class="table-header">
@@ -23115,8 +23137,17 @@
         "paid": 0
       },
       "saSigned": 1,
-      "dcCount": 0,
-      "dcDeals": [],
+      "dcCount": 1,
+      "dcDeals": [
+        {
+          "id": "66637135399",
+          "company": "JCPS Mechanical - 1 Sr 2 Jr Engineers",
+          "dcDate": "2026-10-19",
+          "attendance": "Attended",
+          "leadSource": "Others",
+          "stage": "DC Completed"
+        }
+      ],
       "acCount": 1,
       "acDeals": [
         {
@@ -23944,7 +23975,17 @@
       "acDeals": [],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "createdDeals": [
+        {
+          "id": "66637135399",
+          "company": "JCPS Mechanical - 1 Sr 2 Jr Engineers",
+          "createDate": "2026-10-23",
+          "amount": "600",
+          "leadSource": "Others",
+          "stage": "DC Completed"
+        }
+      ]
     }
   },
   "monthly": [
@@ -117871,6 +117912,26 @@ function renderWeek(wk) {
   setEl('kpi-ac',      d.acCount     != null ? d.acCount     : '—');
   setEl('kpi-deposit', d.paidSettled != null ? d.paidSettled : '—');
 
+  /* Deals created table */
+  setEl('created-week-badge', d.label);
+  var createdDeals = d.createdDeals || [];
+  if (createdDeals.length === 0) {
+    setHTML('created-companies-body', '<tr><td colspan="6" style="color:var(--muted)">No deals created this week.</td></tr>');
+  } else {
+    var crHtml = '';
+    createdDeals.forEach(function(deal, i) {
+      crHtml += '<tr>';
+      crHtml += '<td style="color:var(--muted)">' + (i + 1) + '</td>';
+      crHtml += '<td><strong>' + (deal.company || '—') + '</strong></td>';
+      crHtml += '<td style="color:var(--muted);font-size:12px">' + (deal.leadSource || '—') + '</td>';
+      crHtml += '<td>' + (deal.createDate || '—') + '</td>';
+      crHtml += '<td>' + (deal.amount ? '$' + Number(deal.amount).toLocaleString() : '—') + '</td>';
+      crHtml += '<td style="color:var(--muted);font-size:12px">' + (deal.stage || '—') + '</td>';
+      crHtml += '</tr>';
+    });
+    setHTML('created-companies-body', crHtml);
+  }
+
   /* DC companies table */
   setEl('dc-week-badge', d.label);
   var dcDeals = d.dcDeals || [];
@@ -119898,6 +119959,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function setText(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
     function setHTML(id, val) { var el = document.getElementById(id); if (el) el.innerHTML = val; }
 
+    setText('created-week-badge', currentLabel);
     setText('dc-week-badge',      currentLabel);
     setText('ac-week-badge',      currentLabel);
     setText('sa-week-badge',      currentLabel);
