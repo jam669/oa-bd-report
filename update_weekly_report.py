@@ -579,14 +579,22 @@ def fetch_deposit_deals(start, end):
     return _fetch_deal_date_list("paid_recruitment_date", start, end, "paidDate")
 
 def fetch_first_invoice_deals(start, end):
-    """Fetch BD pipeline deals where paid_first_invoice falls in [start, end].
-    paid_first_invoice is a datetime (some carry a time, e.g. 13:30Z), so the
-    upper bound is "before the next day" rather than LTE midnight of end."""
-    deals = _fetch_deal_date_list("paid_first_invoice", start, end + timedelta(days=1), "invoiceDate")
-    end_day = end.strftime("%Y-%m-%d")
+    """Fetch BD pipeline deals whose Paid First Invoice (paid_first_invoice) falls in [start, end].
+    It is a datetime, shown in HubSpot in Manila time (e.g. 11/18/2026 8:00 AM GMT+8 is
+    stored as 2026-11-18T00:00Z), so fetch a day either side and bucket by the Manila date."""
+    deals = _fetch_deal_date_list("paid_first_invoice", start - timedelta(days=1),
+                                  end + timedelta(days=1), "invoiceDate")
+    start_day, end_day = start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
+    kept = []
     for d in deals:
-        d["invoiceDate"] = (d.get("invoiceDate") or "")[:10]
-    return [d for d in deals if d["invoiceDate"] <= end_day]
+        raw = d.get("invoiceDate") or ""
+        try:
+            d["invoiceDate"] = datetime.fromisoformat(raw.replace("Z", "+00:00"))                                        .astimezone(MANILA_TZ).strftime("%Y-%m-%d")
+        except ValueError:
+            d["invoiceDate"] = raw[:10]
+        if start_day <= d["invoiceDate"] <= end_day:
+            kept.append(d)
+    return kept
 
 def fetch_dc_deals(start, end):
     """Fetch BD pipeline deals with discovery_call_date in [start, end], returning company list."""
