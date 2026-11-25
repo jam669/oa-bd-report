@@ -655,6 +655,12 @@
           <div class="kpi-sub">Recruitment fee paid this week</div>
           <span class="kpi-delta flat" id="kpi-deposit-delta">&#61; Flat vs prev week</span>
         </div>
+        <div class="kpi-card" style="--accent-color:var(--green)">
+          <div class="kpi-label">Paid First Invoice</div>
+          <div class="kpi-value" style="color:var(--green)" id="kpi-invoice">—</div>
+          <div class="kpi-sub">First invoice settled this week</div>
+          <span class="kpi-delta flat" id="kpi-invoice-delta">&#61; Flat vs prev week</span>
+        </div>
       </div>
 
       <!-- DEALS CREATED COMPANY LIST -->
@@ -766,6 +772,29 @@
             </tr>
           </thead>
           <tbody id="deposit-companies-body">
+            <tr><td colspan="6" style="color:var(--muted)">Loading&hellip;</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- PAID FIRST INVOICE COMPANY LIST -->
+      <div class="table-card" style="margin-bottom:28px" id="invoice-companies-card">
+        <div class="table-header">
+          <h3>Paid First Invoice This Week</h3>
+          <span class="badge badge-muted" id="invoice-week-badge">W19</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Company / Deal</th>
+              <th>Lead Source</th>
+              <th>Invoice Paid Date</th>
+              <th>Amount</th>
+              <th>Current Stage</th>
+            </tr>
+          </thead>
+          <tbody id="invoice-companies-body">
             <tr><td colspan="6" style="color:var(--muted)">Loading&hellip;</td></tr>
           </tbody>
         </table>
@@ -2099,7 +2128,9 @@
         "dcAttended": 2,
         "acAttended": 1,
         "paid": 0
-      }
+      },
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "17": {
       "label": "W17",
@@ -2946,7 +2977,9 @@
         "dcAttended": 1,
         "acAttended": 0,
         "paid": 0
-      }
+      },
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "18": {
       "label": "W18",
@@ -3742,7 +3775,9 @@
       "acDeals": [],
       "paidSettled": 0,
       "saDeals": [],
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "19": {
       "label": "W19",
@@ -4564,7 +4599,9 @@
           "stage": "Hiring & Recruiting"
         }
       ],
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "20": {
       "label": "W20",
@@ -5402,7 +5439,9 @@
       ],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "21": {
       "label": "W21",
@@ -6207,7 +6246,9 @@
       "acDeals": [],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "22": {
       "label": "W22",
@@ -7020,7 +7061,18 @@
       "acDeals": [],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [
+        {
+          "id": "56279873975",
+          "company": "C3 Ingenuity - 1 Automation Role",
+          "invoiceDate": "2026-05-31",
+          "amount": "600",
+          "leadSource": "Intro Offer 2026",
+          "stage": "Closed Won"
+        }
+      ],
+      "firstInvoice": 1
     },
     "23": {
       "label": "W23",
@@ -7857,7 +7909,9 @@
       "acDeals": [],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "24": {
       "label": "W24",
@@ -8653,7 +8707,9 @@
       "acDeals": [],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "25": {
       "label": "W25",
@@ -9483,7 +9539,18 @@
       ],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [
+        {
+          "id": "57141064490",
+          "company": "SolCo - Tech Support",
+          "invoiceDate": "2026-06-22",
+          "amount": "600",
+          "leadSource": "",
+          "stage": "Closed Won"
+        }
+      ],
+      "firstInvoice": 1
     },
     "26": {
       "label": "W26",
@@ -10288,7 +10355,9 @@
           "amount": "600",
           "stage": "Hiring & Recruiting"
         }
-      ]
+      ],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "27": {
       "label": "W27",
@@ -11110,7 +11179,9 @@
       ],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "28": {
       "label": "W28",
@@ -11932,7 +12003,9 @@
       ],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "29": {
       "label": "W29",
@@ -12728,7 +12801,9 @@
       "acDeals": [],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "30": {
       "label": "W30",
@@ -13542,7 +13617,18 @@
           "amount": "600",
           "stage": "Hiring & Recruiting"
         }
-      ]
+      ],
+      "firstInvoiceDeals": [
+        {
+          "id": "58479464845",
+          "company": "GavBiz - 1 Business Development Manager / 1 Technicians sku Manager",
+          "invoiceDate": "2026-07-28",
+          "amount": "600",
+          "leadSource": "Outbound Paid",
+          "stage": "Hiring & Recruiting"
+        }
+      ],
+      "firstInvoice": 1
     },
     "31": {
       "label": "W31",
@@ -14347,7 +14433,9 @@
           "amount": "600",
           "stage": "Hiring & Recruiting"
         }
-      ]
+      ],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "32": {
       "label": "W32",
@@ -15143,7 +15231,9 @@
       "acDeals": [],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "33": {
       "label": "W33",
@@ -15939,7 +16029,9 @@
       "acDeals": [],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "34": {
       "label": "W34",
@@ -16735,7 +16827,9 @@
       "acDeals": [],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "35": {
       "label": "W35",
@@ -17531,7 +17625,9 @@
       "acDeals": [],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "36": {
       "label": "W36",
@@ -18336,7 +18432,9 @@
         }
       ],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "37": {
       "label": "W37",
@@ -19132,7 +19230,9 @@
       "acDeals": [],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "38": {
       "label": "W38",
@@ -19937,7 +20037,9 @@
       "acDeals": [],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "39": {
       "label": "W39",
@@ -20733,7 +20835,9 @@
       "acDeals": [],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "40": {
       "label": "W40",
@@ -21538,7 +21642,9 @@
       "acDeals": [],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "41": {
       "label": "W41",
@@ -22351,7 +22457,9 @@
       "acDeals": [],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "42": {
       "label": "W42",
@@ -23183,7 +23291,9 @@
           "amount": "600",
           "stage": "Hiring & Recruiting"
         }
-      ]
+      ],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "43": {
       "label": "W43",
@@ -23989,7 +24099,18 @@
           "leadSource": "Others",
           "stage": "DC Completed"
         }
-      ]
+      ],
+      "firstInvoiceDeals": [
+        {
+          "id": "60846332454",
+          "company": "Thriviae - Sales Representative",
+          "invoiceDate": "2026-10-22",
+          "amount": "600",
+          "leadSource": "Others",
+          "stage": "Closed Won"
+        }
+      ],
+      "firstInvoice": 1
     },
     "44": {
       "label": "W44",
@@ -24786,7 +24907,9 @@
       "acDeals": [],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "45": {
       "label": "W45",
@@ -25583,7 +25706,9 @@
       "acDeals": [],
       "saDeals": [],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "46": {
       "label": "W46",
@@ -26389,7 +26514,9 @@
           "amount": "600",
           "stage": "Hiring & Recruiting"
         }
-      ]
+      ],
+      "firstInvoiceDeals": [],
+      "firstInvoice": 0
     },
     "47": {
       "label": "W47",
@@ -27195,7 +27322,18 @@
         }
       ],
       "paidSettled": 0,
-      "depositDeals": []
+      "depositDeals": [],
+      "firstInvoiceDeals": [
+        {
+          "id": "65791265687",
+          "company": "Pineapple Audio - Bookkeeper",
+          "invoiceDate": "2026-11-18",
+          "amount": "600",
+          "leadSource": "OA Derek",
+          "stage": "Closed Won"
+        }
+      ],
+      "firstInvoice": 1
     }
   },
   "monthly": [
@@ -121329,6 +121467,7 @@ function renderWeek(wk) {
   setEl('kpi-dc',      d.dcCount     != null ? d.dcCount     : '—');
   setEl('kpi-ac',      d.acCount     != null ? d.acCount     : '—');
   setEl('kpi-deposit', d.paidSettled != null ? d.paidSettled : '—');
+  setEl('kpi-invoice', d.firstInvoice != null ? d.firstInvoice : '—');
 
   /* Deals created table */
   setEl('created-week-badge', d.label);
@@ -121442,6 +121581,27 @@ function renderWeek(wk) {
     setHTML('deposit-companies-body', depHtml);
   }
 
+  /* Paid first invoice table */
+  setEl('invoice-week-badge', d.label);
+  var invoiceDeals = d.firstInvoiceDeals || [];
+  if (invoiceDeals.length === 0) {
+    setHTML('invoice-companies-body', '<tr><td colspan="6" style="color:var(--muted)">No first invoices paid this week.</td></tr>');
+  } else {
+    var invHtml = '';
+    invoiceDeals.forEach(function(deal, i) {
+      var amt = deal.amount ? '$' + Number(deal.amount).toLocaleString() : '—';
+      invHtml += '<tr>';
+      invHtml += '<td style="color:var(--muted)">' + (i + 1) + '</td>';
+      invHtml += '<td><strong>' + (deal.company || '—') + '</strong></td>';
+      invHtml += '<td style="color:var(--muted);font-size:12px">' + (deal.leadSource || '—') + '</td>';
+      invHtml += '<td>' + (deal.invoiceDate || '—') + '</td>';
+      invHtml += '<td style="color:var(--green);font-weight:600">' + amt + '</td>';
+      invHtml += '<td style="color:var(--muted);font-size:12px">' + (deal.stage || '—') + '</td>';
+      invHtml += '</tr>';
+    });
+    setHTML('invoice-companies-body', invHtml);
+  }
+
   setHTML('kpi-contacts-sub', 'OA Business Development');
   setHTML('kpi-valid-sub', d.validStrict + ' Valid &middot; ' + d.validNI + ' Valid-NI');
   setHTML('kpi-deals-sub', d.deals > 0 ? d.deals + ' BD pipeline' : 'BD pipeline');
@@ -121452,8 +121612,13 @@ function renderWeek(wk) {
     var vDelta = delta(d.valid, prev.valid);
     var connDelta = d.connected === prev.connected ? 'Flat' : delta(d.connected, prev.connected);
     var dealDelta = delta(d.deals, prev.deals);
-    setHTML('kpi-contacts-delta', (d.contacts < prev.contacts ? '&#9660; ' : '&#9650; ') + Math.abs(parseFloat(cDelta)) + '% vs ' + prev.label + ' (' + prev.contacts + ')');
-    setHTML('kpi-valid-delta', (d.valid < prev.valid ? '&#9660; ' : '&#9650; ') + Math.abs(parseFloat(vDelta)) + '% vs ' + prev.label + ' (' + prev.valid + ')');
+    function pctLine(curr, p, d0) {
+      if (curr === p) return '&#61; Flat vs ' + prev.label + ' (' + p + ')';
+      if (!p) return '&#9650; +' + curr + ' vs ' + prev.label + ' (0)';
+      return (curr < p ? '&#9660; ' : '&#9650; ') + Math.abs(parseFloat(d0)) + '% vs ' + prev.label + ' (' + p + ')';
+    }
+    setHTML('kpi-contacts-delta', pctLine(d.contacts, prev.contacts, cDelta));
+    setHTML('kpi-valid-delta', pctLine(d.valid, prev.valid, vDelta));
     setHTML('kpi-connected-delta', connDelta === 'Flat' ? '&#61; Flat vs ' + prev.label : connDelta + ' vs ' + prev.label);
     setHTML('kpi-deals-delta', (d.deals > prev.deals ? '&#9650; ' : '&#9660; ') + dealDelta + ' vs ' + prev.label + ' (' + prev.deals + ')');
     function absCountDelta(curr, p, elId) {
@@ -121467,6 +121632,7 @@ function renderWeek(wk) {
     absCountDelta(d.dcCount,      prev.dcCount,      'kpi-dc-delta');
     absCountDelta(d.acCount,      prev.acCount,      'kpi-ac-delta');
     absCountDelta(d.paidSettled,  prev.paidSettled,  'kpi-deposit-delta');
+    absCountDelta(d.firstInvoice, prev.firstInvoice, 'kpi-invoice-delta');
   }
 
   /* Funnel visual */
@@ -123382,6 +123548,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setText('ac-week-badge',      currentLabel);
     setText('sa-week-badge',      currentLabel);
     setText('deposit-week-badge', currentLabel);
+    setText('invoice-week-badge', currentLabel);
     setText('wow-badge',          prevLabel + ' vs ' + currentLabel);
     setHTML('wow-th-prev',        prevLabel + ' (' + prevRange + ')');
     setHTML('wow-th-curr',        currentLabel + ' (' + currentRange + ')');

@@ -578,6 +578,16 @@ def fetch_deposit_deals(start, end):
     """Fetch BD pipeline deals where paid_recruitment_date falls in [start, end]."""
     return _fetch_deal_date_list("paid_recruitment_date", start, end, "paidDate")
 
+def fetch_first_invoice_deals(start, end):
+    """Fetch BD pipeline deals where paid_first_invoice falls in [start, end].
+    paid_first_invoice is a datetime (some carry a time, e.g. 13:30Z), so the
+    upper bound is "before the next day" rather than LTE midnight of end."""
+    deals = _fetch_deal_date_list("paid_first_invoice", start, end + timedelta(days=1), "invoiceDate")
+    end_day = end.strftime("%Y-%m-%d")
+    for d in deals:
+        d["invoiceDate"] = (d.get("invoiceDate") or "")[:10]
+    return [d for d in deals if d["invoiceDate"] <= end_day]
+
 def fetch_dc_deals(start, end):
     """Fetch BD pipeline deals with discovery_call_date in [start, end], returning company list."""
     filters = [
@@ -1620,6 +1630,7 @@ def backfill_missing_fields():
         if ("saSigned" in d and "dcCount" in d and "acCount" in d
                 and "acDeals" in d and "paidSettled" in d
                 and "saDeals" in d and "depositDeals" in d
+                and "firstInvoiceDeals" in d
                 and _has_lead_source(d.get("dcDeals"))
                 and _has_lead_source(d.get("acDeals"))):
             print(f"  W{wk_str}: already complete, skipping")
@@ -1643,6 +1654,9 @@ def backfill_missing_fields():
         deposit_deals = fetch_deposit_deals(start, end)
         d["depositDeals"] = deposit_deals
         d["paidSettled"]  = len(deposit_deals)
+        invoice_deals = fetch_first_invoice_deals(start, end)
+        d["firstInvoiceDeals"] = invoice_deals
+        d["firstInvoice"]      = len(invoice_deals)
 
         print(f"    SA={d['saSigned']} DC={d['dcCount']} AC={d['acCount']} Deposit={d['paidSettled']}")
         patched += 1
@@ -1693,6 +1707,7 @@ def rebuild_weeks():
         ac_deals      = fetch_ac_deals(start, end)
         sa_deals      = fetch_sa_deals(start, end)
         deposit_deals = fetch_deposit_deals(start, end)
+        invoice_deals = fetch_first_invoice_deals(start, end)
         weekly_deals_progress = fetch_deals_progress(weekly_contact_ids)
         valid_total = stats["valid_strict"] + stats["valid_ni"]
 
@@ -1733,6 +1748,8 @@ def rebuild_weeks():
             "acDeals":           ac_deals,
             "depositDeals":      deposit_deals,
             "paidSettled":       len(deposit_deals),
+            "firstInvoiceDeals": invoice_deals,
+            "firstInvoice":      len(invoice_deals),
         })
         print(f"    contacts={stats['contacts_total']} valid={valid_total} "
               f"connected={stats['connected']} deals={deals_count} "
@@ -1836,6 +1853,7 @@ def main():
     sa_signed      = len(sa_deals)
     deposit_deals  = fetch_deposit_deals(start, end)
     paid_settled   = len(deposit_deals)
+    invoice_deals  = fetch_first_invoice_deals(start, end)
     print(f"  Deals created: {deals_count} | SA: {sa_signed} | DC: {dc_count} | AC: {ac_count} | Deposit: {paid_settled}")
 
     # Top 50 outreach — soft-fail; not a KPI, just a ranking list.
@@ -1922,6 +1940,8 @@ def main():
         "saDeals":           sa_deals,
         "paidSettled":       paid_settled,
         "depositDeals":      deposit_deals,
+        "firstInvoice":      len(invoice_deals),
+        "firstInvoiceDeals": invoice_deals,
     }
 
     # Patch HTML
